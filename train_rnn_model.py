@@ -72,10 +72,11 @@ upos = 18     # number of upos in the train dataset
 
 # train dataset
 
-train_files = [
-    'data/train-de.cupt', 'data/train-ga.cupt', 'data/train-hi.cupt',
-    'data/train-pt.cupt', 'data/train-zh.cupt'
-]
+train_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if  file == 'train.cupt':
+            train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files)
 
@@ -94,10 +95,11 @@ y_train = np.array(train_labels).reshape(-1, 1)
 
 # validation/dev dataset
 
-dev_files = [
-    'data/dev-de.cupt', 'data/dev-ga.cupt', 'data/dev-hi.cupt',
-    'data/dev-pt.cupt', 'data/dev-zh.cupt'
-]
+dev_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if  file == 'dev.cupt':
+            dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files)
 

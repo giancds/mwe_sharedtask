@@ -2,16 +2,11 @@
 
 ## Data
 
-To run the experiments we need to create a folder called `data` containing the training and dev datasets for the selected languages.
+To run the experiments we need to create a folder called `data` and copy the data folders containing the datasets for the selected languages.
 
 You can obtain the data from the Shared-task page [here](https://gitlab.com/parseme/sharedtask-data/tree/master/1.2).
 
-The naming convention for our experiments be:
-
-* `train-CODE.cupt`
-* `dev-CODE.cupt`
-
-where `CODE` refers to the code for the selected languages. So far we're using:
+So far we're using:
 
 * Chinese (ZH)
 * German (DE)
@@ -19,8 +14,6 @@ where `CODE` refers to the code for the selected languages. So far we're using:
 * Irish (GA)
 * Portuguese (PT)
 
-
-If you need more details,  you can check the code [here](https://github.com/giancds/mwe_sharedtask/blob/master/train_rnn_model.py#L75).
 
 ## Libraries
 
