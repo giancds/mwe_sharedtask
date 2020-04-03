@@ -8,9 +8,9 @@ from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils import np_utils
 
-from keras.models import Sequential
+from keras.models import Model
 from keras.optimizers import SGD, Adam, RMSprop
-from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Bidirectional
+from keras.layers import Input, Dense, Embedding, LSTM, SpatialDropout1D, Bidirectional
 from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks.tensorboard_v1 import TensorBoard
 
@@ -31,7 +31,11 @@ TRAIN_DIR = "train_mwe_classifier"
 # Some hyperparameter definitions
 #
 
+EOS = '_EOS '
+EOL = ' _EOL'
+
 upos = 18
+n_labels = len(['0', '1']) + len([EOS, EOL])
 
 flags.DEFINE_integer("max_epochs", 100,
                      "Max number of epochs to train the models")
@@ -82,8 +86,6 @@ FLAGS = flags.FLAGS
 
 print('Pre-processing data...')
 
-
-
 upos = 18     # number of upos in the train dataset
 
 # train dataset
@@ -94,19 +96,22 @@ for root, dirs, files in os.walk('data/'):
         if file == 'train.cupt':
             train_files.append(os.path.join(root, file))
 
-train_dataset = extract_dataset(train_files)
+train_dataset = extract_dataset(train_files, per_word=True)
 
 train_sents = [d[0] for d in train_dataset]
-train_labels = [d[1] for d in train_dataset]
+train_labels = [(EOS + d[1] + EOL).strip() for d in train_dataset]
 
+tokenizer_pos = Tokenizer(num_words=upos, split=' ')
+tokenizer_lab = Tokenizer(num_words=n_labels, split=' ')
 
-
-tokenizer = Tokenizer(num_words=upos, split=' ')
-tokenizer.fit_on_texts(train_sents)
-x_train = tokenizer.texts_to_sequences(train_sents)
+tokenizer_pos.fit_on_texts(train_sents)
+x_train = tokenizer_pos.texts_to_sequences(train_sents)
 x_train = pad_sequences(x_train)     # pad to the longest sequence length
 
-y_train = np.array(train_labels).reshape(-1, 1)
+tokenizer_lab.fit_on_texts(train_labels)
+y_train = tokenizer_lab.texts_to_sequences(train_labels)
+y_train = pad_sequences(y_train, maxlen=x_train.shape[1])     # pad to the longest sequence length
+
 x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   y_train,
                                                   test_size=0.15,
@@ -120,17 +125,16 @@ for root, dirs, files in os.walk('data/'):
         if file == 'dev.cupt':
             dev_files.append(os.path.join(root, file))
 
-dev_dataset = extract_dataset(dev_files)
+dev_dataset = extract_dataset(dev_files, per_word=True)
 
 dev_sents = [d[0] for d in dev_dataset]
-dev_labels = [d[1] for d in dev_dataset]
+dev_labels = [(EOS + d[1] + EOL).strip() for d in dev_dataset]
 
-x_dev = tokenizer.texts_to_sequences(dev_sents)
-x_dev = pad_sequences(
-    x_dev,
-    maxlen=x_train.shape[1])     # pad to the longest train sequence length
+x_dev = tokenizer_pos.texts_to_sequences(dev_sents)
+x_dev = pad_sequences(x_dev, maxlen=x_train.shape[1])
 
-y_dev = np.array(dev_labels).reshape(-1, 1)
+y_dev = tokenizer_lab.texts_to_sequences(dev_labels)
+y_dev = pad_sequences(y_dev, maxlen=x_train.shape[1])
 
 # #####
 # Building and training the model
@@ -138,26 +142,22 @@ y_dev = np.array(dev_labels).reshape(-1, 1)
 
 print("Building model...")
 
-model = Sequential()
-# embedding
-model.add(Embedding(upos, FLAGS.embed_dim, input_length=x_train.shape[1]))
-model.add(SpatialDropout1D(FLAGS.spatial_dropout))
-# LSTMs
-for layer in range(FLAGS.n_layers):
-    return_sequences = False if layer == FLAGS.n_layers - 1 else True
-    layer = LSTM(FLAGS.lstm_size,
-                 dropout=FLAGS.lstm_dropout,
-                 recurrent_dropout=FLAGS.lstm_recurrent_dropout,
-                 return_sequences=return_sequences)
-    # if bidirectional
-    if FLAGS.bilstm:
-        layer = Bidirectional(layer)
-    model.add(layer)
-# softmax
-model.add(Dense(2, activation='softmax'))
+# encoder side
+encoder_inputs = Input(shape=(None,))
+x = Embedding(upos, FLAGS.lstm_size)(encoder_inputs)
+x, state_h, state_c = LSTM(FLAGS.lstm_size, return_state=True)(x)
+encoder_states = [state_h, state_c]
 
+# decoder side
+decoder_inputs = Input(shape=(None,))
+x = Embedding(n_labels, FLAGS.lstm_size)(decoder_inputs)
+x = LSTM(FLAGS.lstm_size, return_sequences=True)(x, initial_state=encoder_states)
+decoder_outputs = Dense(n_labels, activation='softmax')(x)
 
+# model
+model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
+# optimizers
 optimizer = None
 if str(FLAGS.optimizer).lower() == 'sgd':
     optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
@@ -169,9 +169,7 @@ elif FLAGS.optimizer == 'rmsprop':
     optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
 
 # compiling model
-model.compile(loss='categorical_crossentropy',
-              optimizer=optimizer,
-              metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=optimizer)
 
 print(model.summary())
 checkpoint = ModelCheckpoint(FLAGS.train_dir + FLAGS.model_name,
@@ -189,21 +187,14 @@ if FLAGS.log_tensorboard:
     callbacks.append(tensorboard)
 
 print('Train...')
-model.fit(x_train,
-          np_utils.to_categorical(y_train),
+model.fit([x_train, y_train[:, 0:-1]], np_utils.to_categorical((y_train[:, 1:])),
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
-          validation_data=(x_val, np_utils.to_categorical(y_val)))
+          validation_data=([x_val, y_val[:, 0:-1]], np_utils.to_categorical((y_val[:, 1:])))
 
 # #####
 # Evaluation time
 #
 
-y_pred = model.predict(x_dev).argmax(axis=1)
 
-print('Confusion matrix:')
-print(confusion_matrix(y_dev, y_pred))
-
-print('\n\nReport')
-print(classification_report(y_dev, y_pred))
