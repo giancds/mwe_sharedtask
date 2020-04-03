@@ -25,7 +25,7 @@ flags.DEFINE_integer("early_stop_patience", 10,
                      "How many training steps to monitor. Set to 0 to ignore.")
 
 flags.DEFINE_float("early_stop_delta", 0.001,
-                     "How many training steps to monitor. Set to 0 to ignore.")
+                   "How many training steps to monitor. Set to 0 to ignore.")
 
 flags.DEFINE_boolean("log_tensorboard", False,
                      "Whether or not to log info using tensorboard")
@@ -52,7 +52,8 @@ flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
 
 flags.DEFINE_integer("batch_size", 32, "Size of batches.")
 
-flags.DEFINE_string("optimizer", 'adam', "Which optimizer to use. One of adam, sgd and rmsprop.")
+flags.DEFINE_string("optimizer", 'adam',
+                    "Which optimizer to use. One of adam, sgd and rmsprop.")
 
 flags.DEFINE_float("learning_rate", 0.0001, "Learning rate for the optimizer.")
 
@@ -75,7 +76,7 @@ upos = 18     # number of upos in the train dataset
 train_files = []
 for root, dirs, files in os.walk('data/'):
     for file in files:
-        if  file == 'train.cupt':
+        if file == 'train.cupt':
             train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files)
@@ -83,6 +84,7 @@ train_dataset = extract_dataset(train_files)
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
 
+from sklearn.model_selection import train_test_split
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 
@@ -92,13 +94,17 @@ x_train = tokenizer.texts_to_sequences(train_sents)
 x_train = pad_sequences(x_train)     # pad to the longest sequence length
 
 y_train = np.array(train_labels).reshape(-1, 1)
+x_train, x_val, y_train, y_val = train_test_split(x_train,
+                                                  y_train,
+                                                  test_size=0.15,
+                                                  random_state=42)
 
 # validation/dev dataset
 
 dev_files = []
 for root, dirs, files in os.walk('data/'):
     for file in files:
-        if  file == 'dev.cupt':
+        if file == 'dev.cupt':
             dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files)
@@ -121,6 +127,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Bidirectional
 from keras.utils import np_utils
 from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint
+from keras.callbacks.tensorboard_v1 import TensorBoard
 
 print("Building model...")
 
@@ -174,13 +181,13 @@ if FLAGS.log_tensorboard:
     tensorboard = TensorBoard(log_dir=FLAGS.train_dir + '/logs')
     callbacks.append(tensorboard)
 
-
 print('Train...')
 model.fit(x_train,
           np_utils.to_categorical(y_train),
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
-          validation_data=(x_dev, np_utils.to_categorical(y_dev)))
+          callbacks=callbacks,
+          validation_data=(x_val, np_utils.to_categorical(y_val)))
 
 # #####
 # Evaluation time
