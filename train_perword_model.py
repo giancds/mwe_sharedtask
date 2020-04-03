@@ -31,9 +31,11 @@ TRAIN_DIR = "train_mwe_classifier"
 # Some hyperparameter definitions
 #
 
-upos = 18
+upos = 18   # number of upos in the train dataset
+n_labels = 2
 
-flags.DEFINE_integer("max_epochs", 100,
+
+flags.DEFINE_integer("max_epochs", 1,
                      "Max number of epochs to train the models")
 
 flags.DEFINE_integer("early_stop_patience", 10,
@@ -45,7 +47,7 @@ flags.DEFINE_float("early_stop_delta", 0.001,
 flags.DEFINE_boolean("log_tensorboard", False,
                      "Whether or not to log info using tensorboard")
 
-flags.DEFINE_string("model_name", "model.ckpt", "Model name")
+flags.DEFINE_string("model_name", "pwmodel.ckpt", "Model name")
 
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
@@ -82,10 +84,6 @@ FLAGS = flags.FLAGS
 
 print('Pre-processing data...')
 
-
-
-upos = 18     # number of upos in the train dataset
-
 # train dataset
 
 train_files = []
@@ -94,25 +92,26 @@ for root, dirs, files in os.walk('data/'):
         if file == 'train.cupt':
             train_files.append(os.path.join(root, file))
 
-train_dataset = extract_dataset(train_files)
+train_dataset = extract_dataset(train_files, per_word=True)
 
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
 
+tokenizer_pos = Tokenizer(num_words=upos, split=' ')
+tokenizer_lab = Tokenizer(num_words=n_labels, split=' ')
 
+tokenizer_pos.fit_on_texts(train_sents)
+x_train = tokenizer_pos.texts_to_sequences(train_sents)
+x_train = pad_sequences(x_train, value=0.0)     # pad to the longest sequence length
 
-tokenizer = Tokenizer(num_words=upos, split=' ')
-tokenizer.fit_on_texts(train_sents)
-x_train = tokenizer.texts_to_sequences(train_sents)
-x_train = pad_sequences(x_train)     # pad to the longest sequence length
+tokenizer_lab.fit_on_texts(train_labels)
+y_train = tokenizer_lab.texts_to_sequences(train_labels)
+y_train = pad_sequences(y_train, maxlen=x_train.shape[1], value=0.0)     # pad to the longest sequence length
 
-y_train = np.array(train_labels).reshape(-1, 1)
 x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   y_train,
                                                   test_size=0.15,
                                                   random_state=42)
-
-# validation/dev dataset
 
 dev_files = []
 for root, dirs, files in os.walk('data/'):
@@ -120,17 +119,17 @@ for root, dirs, files in os.walk('data/'):
         if file == 'dev.cupt':
             dev_files.append(os.path.join(root, file))
 
-dev_dataset = extract_dataset(dev_files)
+dev_dataset = extract_dataset(dev_files, per_word=True)
 
 dev_sents = [d[0] for d in dev_dataset]
 dev_labels = [d[1] for d in dev_dataset]
 
-x_dev = tokenizer.texts_to_sequences(dev_sents)
-x_dev = pad_sequences(
-    x_dev,
-    maxlen=x_train.shape[1])     # pad to the longest train sequence length
+x_dev = tokenizer_pos.texts_to_sequences(dev_sents)
+x_dev = pad_sequences(x_dev, maxlen=x_train.shape[1], value=0.0)
 
-y_dev = np.array(dev_labels).reshape(-1, 1)
+y_dev = tokenizer_lab.texts_to_sequences(dev_labels)
+y_dev = pad_sequences(y_dev, maxlen=x_train.shape[1], value=0.0)
+
 
 # #####
 # Building and training the model
@@ -144,18 +143,17 @@ model.add(Embedding(upos, FLAGS.embed_dim, input_length=x_train.shape[1]))
 model.add(SpatialDropout1D(FLAGS.spatial_dropout))
 # LSTMs
 for layer in range(FLAGS.n_layers):
-    return_sequences = False if layer == FLAGS.n_layers - 1 else True
+    # return_sequences = False if layer == FLAGS.n_layers - 1 else True
     layer = LSTM(FLAGS.lstm_size,
                  dropout=FLAGS.lstm_dropout,
                  recurrent_dropout=FLAGS.lstm_recurrent_dropout,
-                 return_sequences=return_sequences)
+                 return_sequences=True)
     # if bidirectional
     if FLAGS.bilstm:
         layer = Bidirectional(layer)
     model.add(layer)
 # softmax
 model.add(Dense(2, activation='softmax'))
-
 
 
 optimizer = None
@@ -200,10 +198,20 @@ model.fit(x_train,
 # Evaluation time
 #
 
-y_pred = model.predict(x_dev).argmax(axis=1)
+_y_pred = model.predict(x_dev).argmax(axis=2)
+
+
+
+lens = [len(i.split()) for i in dev_labels]
+y_true = []
+y_pred = []
+for i in range(y_dev.shape[0]):
+    y_true += y_dev[i, -lens[i]:].tolist()
+    y_pred += _y_pred[i, -lens[i]:].tolist()
+
 
 print('Confusion matrix:')
-print(confusion_matrix(y_dev, y_pred))
+print(confusion_matrix(y_true, y_pred))
 
 print('\n\nReport')
-print(classification_report(y_dev, y_pred))
+print(classification_report(y_true, y_pred))
