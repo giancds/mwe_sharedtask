@@ -50,7 +50,7 @@ flags.DEFINE_string("model_name", "model.ckpt", "Model name")
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
 
-flags.DEFINE_integer("embed_dim", 100, "Dimension of embbeddings.")
+flags.DEFINE_integer("embed_dim", 20, "Dimension of embbeddings.")
 
 flags.DEFINE_float("spatial_dropout", 0.4, "Embbeddings dropout.")
 
@@ -63,7 +63,7 @@ flags.DEFINE_float("lstm_dropout", 0.2, "LSTM regular dropout.")
 
 flags.DEFINE_float("lstm_recurrent_dropout", 0.2, "LSTM recurrent dropout.")
 
-flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
+flags.DEFINE_integer("n_layers", 2, "Number of LSTM layers.")
 
 flags.DEFINE_integer("batch_size", 32, "Size of batches.")
 
@@ -72,7 +72,7 @@ flags.DEFINE_string("optimizer", 'adam',
 
 flags.DEFINE_float("learning_rate", 0.0001, "Learning rate for the optimizer.")
 
-flags.DEFINE_float("clipnorm", 0.1, "Max norm size to clipt the gradients.")
+flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 
 FLAGS = flags.FLAGS
 
@@ -101,7 +101,7 @@ train_labels = [d[1] for d in train_dataset]
 
 
 
-tokenizer = Tokenizer(num_words=upos, split=' ')
+tokenizer = Tokenizer(num_words=upos + 1, split=' ')  # +1 to account for padding later
 tokenizer.fit_on_texts(train_sents)
 x_train = tokenizer.texts_to_sequences(train_sents)
 x_train = pad_sequences(x_train)     # pad to the longest sequence length

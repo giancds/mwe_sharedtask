@@ -10,8 +10,7 @@ from keras.utils import np_utils
 
 from keras.models import Sequential
 from keras.optimizers import SGD, Adam, RMSprop
-from keras.layers import Dense, Embedding, SpatialDropout1D
-from keras.layers import LSTM, Bidirectional, TimeDistributed
+from keras.layers import Dense, Embedding, SpatialDropout1D, LSTM, Bidirectional
 from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks.tensorboard_v1 import TensorBoard
 
@@ -31,9 +30,8 @@ TRAIN_DIR = "train_mwe_classifier"
 # Some hyperparameter definitions
 #
 
-upos = 18   # number of upos in the train dataset
+upos = 18     # number of upos in the train dataset
 n_labels = 2
-
 
 flags.DEFINE_integer("max_epochs", 1,
                      "Max number of epochs to train the models")
@@ -98,18 +96,20 @@ train_dataset = extract_dataset(train_files, per_word=True)
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
 
-tokenizer_pos = Tokenizer(num_words=upos, split=' ')
-tokenizer_lab = Tokenizer(num_words=n_labels, split=' ')
+tokenizer_pos = Tokenizer(num_words=upos + 1,
+                          split=' ')     # +1 to account for padding later
 
 tokenizer_pos.fit_on_texts(train_sents)
 x_train = tokenizer_pos.texts_to_sequences(train_sents)
-x_train = pad_sequences(x_train, value=0.0, padding='post')     # pad to the longest sequence length
+x_train = pad_sequences(x_train, value=0.0,
+                        padding='post')     # pad to the longest sequence length
 
-tokenizer_lab.fit_on_texts(train_labels)
-y_train = tokenizer_lab.texts_to_sequences(train_labels)
-y_train = pad_sequences(y_train, maxlen=x_train.shape[1],
-                        value=tokenizer_lab.word_index['f'],
-                        padding='post')    # pad to the longest sequence length
+# tokenizer_lab.fit_on_texts(train_labels)
+# y_train = tokenizer_lab.texts_to_sequences(train_labels)
+y_train = pad_sequences(train_labels,
+                        maxlen=x_train.shape[1],
+                        value=-1.0,
+                        padding='post')     # pad to the longest sequence length
 
 x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   y_train,
@@ -131,11 +131,11 @@ dev_labels = [d[1] for d in dev_dataset]
 x_dev = tokenizer_pos.texts_to_sequences(dev_sents)
 x_dev = pad_sequences(x_dev, maxlen=x_train.shape[1], value=0.0, padding='post')
 
-y_dev = tokenizer_lab.texts_to_sequences(dev_labels)
-y_dev = pad_sequences(y_dev, maxlen=x_train.shape[1],
-                      value=tokenizer_lab.word_index['f'],
+# y_dev = tokenizer_lab.texts_to_sequences(dev_labels)
+y_dev = pad_sequences(dev_labels,
+                      maxlen=x_train.shape[1],
+                      value=-1.0,
                       padding='post')
-
 
 # #####
 # Building and training the model
@@ -150,17 +150,17 @@ model.add(SpatialDropout1D(FLAGS.spatial_dropout))
 # LSTMs
 for layer in range(FLAGS.n_layers):
     # return_sequences = False if layer == FLAGS.n_layers - 1 else True
+    return_sequences = True
     layer = LSTM(FLAGS.lstm_size,
                  dropout=FLAGS.lstm_dropout,
                  recurrent_dropout=FLAGS.lstm_recurrent_dropout,
-                 return_sequences=True)
+                 return_sequences=return_sequences)
     # if bidirectional
     if FLAGS.bilstm:
         layer = Bidirectional(layer)
     model.add(layer)
 # softmax
-model.add(TimeDistributed(Dense(n_labels, activation='softmax')))
-
+model.add(Dense(n_labels, activation='softmax'))
 
 optimizer = None
 if str(FLAGS.optimizer).lower() == 'sgd':
@@ -207,8 +207,7 @@ model.fit(x_train,
 _y_pred = model.predict(x_dev).argmax(axis=2)
 
 
-
-lens = [len(i.split()) for i in dev_labels]
+lens = [len(i for i in dev_labels]
 y_true = []
 y_pred = []
 for i in range(y_dev.shape[0]):
@@ -216,7 +215,6 @@ for i in range(y_dev.shape[0]):
     # y_pred += _y_pred[i, -lens[i]:].tolist()
     y_true += y_dev[i, 0:lens[i]].tolist()
     y_pred += _y_pred[i, 0:lens[i]].tolist()
-
 
 print('Confusion matrix:')
 print(confusion_matrix(y_true, y_pred))
