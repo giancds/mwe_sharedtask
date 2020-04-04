@@ -84,12 +84,12 @@ print('Pre-processing data...')
 
 # train dataset
 
-train_files = ['data/PT/train.cupt']
-# train_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'train.cupt':
-#             train_files.append(os.path.join(root, file))
+
+train_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'train.cupt':
+            train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, per_word=True)
 
@@ -116,12 +116,11 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   test_size=0.15,
                                                   random_state=42)
 
-dev_files = ['data/PT/dev.cupt']
-# dev_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'dev.cupt':
-#             dev_files.append(os.path.join(root, file))
+dev_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'dev.cupt':
+            dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files, per_word=True)
 
@@ -207,7 +206,7 @@ model.fit(x_train,
 _y_pred = model.predict(x_dev).argmax(axis=2)
 
 
-lens = [len(i for i in dev_labels]
+lens = [len(i) for i in dev_labels]
 y_true = []
 y_pred = []
 for i in range(y_dev.shape[0]):
