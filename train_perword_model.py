@@ -10,7 +10,8 @@ from keras.utils import np_utils
 
 from keras.models import Sequential
 from keras.optimizers import SGD, Adam, RMSprop
-from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Bidirectional
+from keras.layers import Dense, Embedding, SpatialDropout1D
+from keras.layers import LSTM, Bidirectional, TimeDistributed
 from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks.tensorboard_v1 import TensorBoard
 
@@ -23,7 +24,6 @@ from preprocess import extract_dataset
 #
 
 # pylint: disable=W0613,C0103,C0112
-seed = 1701
 BASE_DIR = os.path.expanduser("~")     # this will point to the user's home
 TRAIN_DIR = "train_mwe_classifier"
 
@@ -86,11 +86,12 @@ print('Pre-processing data...')
 
 # train dataset
 
-train_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'train.cupt':
-            train_files.append(os.path.join(root, file))
+train_files = ['data/PT/train.cupt']
+# train_files = []
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'train.cupt':
+#             train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, per_word=True)
 
@@ -102,22 +103,25 @@ tokenizer_lab = Tokenizer(num_words=n_labels, split=' ')
 
 tokenizer_pos.fit_on_texts(train_sents)
 x_train = tokenizer_pos.texts_to_sequences(train_sents)
-x_train = pad_sequences(x_train, value=0.0)     # pad to the longest sequence length
+x_train = pad_sequences(x_train, value=0.0, padding='post')     # pad to the longest sequence length
 
 tokenizer_lab.fit_on_texts(train_labels)
 y_train = tokenizer_lab.texts_to_sequences(train_labels)
-y_train = pad_sequences(y_train, maxlen=x_train.shape[1], value=0.0)     # pad to the longest sequence length
+y_train = pad_sequences(y_train, maxlen=x_train.shape[1],
+                        value=tokenizer_lab.word_index['f'],
+                        padding='post')    # pad to the longest sequence length
 
 x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   y_train,
                                                   test_size=0.15,
                                                   random_state=42)
 
-dev_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'dev.cupt':
-            dev_files.append(os.path.join(root, file))
+dev_files = ['data/PT/dev.cupt']
+# dev_files = []
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'dev.cupt':
+#             dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files, per_word=True)
 
@@ -125,10 +129,12 @@ dev_sents = [d[0] for d in dev_dataset]
 dev_labels = [d[1] for d in dev_dataset]
 
 x_dev = tokenizer_pos.texts_to_sequences(dev_sents)
-x_dev = pad_sequences(x_dev, maxlen=x_train.shape[1], value=0.0)
+x_dev = pad_sequences(x_dev, maxlen=x_train.shape[1], value=0.0, padding='post')
 
 y_dev = tokenizer_lab.texts_to_sequences(dev_labels)
-y_dev = pad_sequences(y_dev, maxlen=x_train.shape[1], value=0.0)
+y_dev = pad_sequences(y_dev, maxlen=x_train.shape[1],
+                      value=tokenizer_lab.word_index['f'],
+                      padding='post')
 
 
 # #####
@@ -153,7 +159,7 @@ for layer in range(FLAGS.n_layers):
         layer = Bidirectional(layer)
     model.add(layer)
 # softmax
-model.add(Dense(2, activation='softmax'))
+model.add(TimeDistributed(Dense(n_labels, activation='softmax')))
 
 
 optimizer = None
@@ -206,8 +212,10 @@ lens = [len(i.split()) for i in dev_labels]
 y_true = []
 y_pred = []
 for i in range(y_dev.shape[0]):
-    y_true += y_dev[i, -lens[i]:].tolist()
-    y_pred += _y_pred[i, -lens[i]:].tolist()
+    # y_true += y_dev[i, -lens[i]:].tolist()
+    # y_pred += _y_pred[i, -lens[i]:].tolist()
+    y_true += y_dev[i, 0:lens[i]].tolist()
+    y_pred += _y_pred[i, 0:lens[i]].tolist()
 
 
 print('Confusion matrix:')

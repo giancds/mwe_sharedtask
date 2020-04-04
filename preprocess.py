@@ -76,7 +76,7 @@ def _build_per_word_dataset(text):
         elif not line.startswith('#'):     # if it is not a line of metadata
             feats = line.split()
             example += ' ' + feats[3]
-            label = ' 0' if feats[10] is '*' else ' 1'
+            label = ' F' if feats[10] is '*' else ' T'
             labels +=  label
 
     return examples
