@@ -10,7 +10,7 @@ from keras.utils import np_utils
 
 from keras.models import Sequential
 from keras.optimizers import SGD, Adam, RMSprop
-from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Bidirectional
+from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Bidirectional, Dropout
 from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks.tensorboard_v1 import TensorBoard
 
@@ -52,7 +52,9 @@ flags.DEFINE_string("train_dir",
 
 flags.DEFINE_integer("embed_dim", 20, "Dimension of embbeddings.")
 
-flags.DEFINE_float("spatial_dropout", 0.4, "Embbeddings dropout.")
+flags.DEFINE_boolean("spatial_dropout", False, "Whether or  to use spatial dropout for Embbeddings.")
+
+flags.DEFINE_float("dropout", 0.1, "Embbeddings dropout.")
 
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
@@ -61,7 +63,7 @@ flags.DEFINE_integer("lstm_size", 100, "Dimension of LSTM layers.")
 
 flags.DEFINE_float("lstm_dropout", 0.2, "LSTM regular dropout.")
 
-flags.DEFINE_float("lstm_recurrent_dropout", 0.2, "LSTM recurrent dropout.")
+flags.DEFINE_float("lstm_recurrent_dropout", 0.0, "LSTM recurrent dropout.")
 
 flags.DEFINE_integer("n_layers", 2, "Number of LSTM layers.")
 
@@ -141,18 +143,23 @@ print("Building model...")
 model = Sequential()
 # embedding
 model.add(Embedding(upos, FLAGS.embed_dim, input_length=x_train.shape[1]))
-model.add(SpatialDropout1D(FLAGS.spatial_dropout))
+if FLAGS.spatial_dropout:
+    model.add(SpatialDropout1D(FLAGS.dropout))
+else:
+    model.add(Dropout(FLAGS.dropout))
+
 # LSTMs
 for layer in range(FLAGS.n_layers):
     return_sequences = False if layer == FLAGS.n_layers - 1 else True
     layer = LSTM(FLAGS.lstm_size,
-                 dropout=FLAGS.lstm_dropout,
+                #  dropout=FLAGS.lstm_dropout,
                  recurrent_dropout=FLAGS.lstm_recurrent_dropout,
                  return_sequences=return_sequences)
     # if bidirectional
     if FLAGS.bilstm:
         layer = Bidirectional(layer)
     model.add(layer)
+    model.add(Dropout(FLAGS.lstm_dropout))
 # softmax
 model.add(Dense(2, activation='softmax'))
 

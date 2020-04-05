@@ -44,12 +44,13 @@ python3 -u train_rnn_model.py \
   --early_stop_patience=10 \
   --early_stop_delta=0.001 \
   --embed_dim=100 \
-  --spatial_dropout=0.4 \
+  --dropout=0.1 \
+  --spatial_dropout=False \
   --n_layers=1 \
   --bilstm=False \
   --lstm_size=100 \
   --lstm_dropout=0.2 \
-  --lstm_recurrent_dropout=0.2 \
+  --lstm_recurrent_dropout=0.0 \
   --batch_size=32 \
   --optimizer='adam' \
   --learning_rate=0.0001\
