@@ -29,7 +29,7 @@ So far we're using:
 
 ## Experiments
 
-To run an experiment:
+To run an experiment (example with default hyperparameters):
 
 ```
 export MODEL_DIR=${HOME}/train_rnn_model/
@@ -52,9 +52,12 @@ python3 -u train_rnn_model.py \
   --lstm_dropout=0.2 \
   --lstm_recurrent_dropout=0.0 \
   --batch_size=32 \
-  --optimizer='adam' \
-  --learning_rate=0.0001\
-  --clipnorm=0.1
+  --optimizer='sgd' \
+  --learning_rate=1.0\
+  --lr_decay=0.5 \
+  --start_decay=6\
+  --clipnorm=5.0\
+  --init_scale=0.05
 ```
 
 ## TODOs:

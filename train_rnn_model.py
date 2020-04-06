@@ -11,6 +11,7 @@ from keras.utils import np_utils
 from keras.models import Sequential
 from keras.optimizers import SGD, Adam, RMSprop
 from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Bidirectional, Dropout
+from keras.initializers import RandomUniform
 from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks.tensorboard_v1 import TensorBoard
 
@@ -23,7 +24,7 @@ from preprocess import extract_dataset
 #
 
 # pylint: disable=W0613,C0103,C0112
-seed = 1701
+SEED = 42
 BASE_DIR = os.path.expanduser("~")     # this will point to the user's home
 TRAIN_DIR = "train_mwe_classifier"
 
@@ -50,7 +51,7 @@ flags.DEFINE_string("model_name", "model.ckpt", "Model name")
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
 
-flags.DEFINE_integer("embed_dim", 20, "Dimension of embbeddings.")
+flags.DEFINE_integer("embed_dim", 30, "Dimension of embbeddings.")
 
 flags.DEFINE_boolean("spatial_dropout", False, "Whether or  to use spatial dropout for Embbeddings.")
 
@@ -59,7 +60,7 @@ flags.DEFINE_float("dropout", 0.1, "Embbeddings dropout.")
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
 
-flags.DEFINE_integer("lstm_size", 100, "Dimension of LSTM layers.")
+flags.DEFINE_integer("lstm_size", 200, "Dimension of LSTM layers.")
 
 flags.DEFINE_float("lstm_dropout", 0.2, "LSTM regular dropout.")
 
@@ -69,12 +70,20 @@ flags.DEFINE_integer("n_layers", 2, "Number of LSTM layers.")
 
 flags.DEFINE_integer("batch_size", 32, "Size of batches.")
 
-flags.DEFINE_string("optimizer", 'adam',
+flags.DEFINE_string("optimizer", 'sgd',
                     "Which optimizer to use. One of adam, sgd and rmsprop.")
 
-flags.DEFINE_float("learning_rate", 0.0001, "Learning rate for the optimizer.")
+flags.DEFINE_float("learning_rate", 0.1, "Learning rate for the optimizer.")
+
+flags.DEFINE_float("lr_decay", (1.0/1.15), "Rate to which we deca they learning rate during training.")
+
+flags.DEFINE_integer("start_decay", 6, "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs")
 
 flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
+
+flags.DEFINE_float("init_scale", 0.05, "Range to initialize the weights of the model.")
+
+
 
 FLAGS = flags.FLAGS
 
@@ -112,7 +121,7 @@ y_train = np.array(train_labels).reshape(-1, 1)
 x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   y_train,
                                                   test_size=0.15,
-                                                  random_state=42)
+                                                  random_state=SEED)
 
 # validation/dev dataset
 
@@ -142,7 +151,12 @@ print("Building model...")
 
 model = Sequential()
 # embedding
-model.add(Embedding(upos, FLAGS.embed_dim, input_length=x_train.shape[1]))
+model.add(Embedding(upos,
+                    FLAGS.embed_dim,
+                    input_length=x_train.shape[1],
+                    embeddings_initializer=RandomUniform(minval=-FLAGS.init_scale,
+                                                         maxval=FLAGS.init_scale,
+                                                         seed=SEED)))
 if FLAGS.spatial_dropout:
     model.add(SpatialDropout1D(FLAGS.dropout))
 else:
@@ -154,7 +168,15 @@ for layer in range(FLAGS.n_layers):
     layer = LSTM(FLAGS.lstm_size,
                 #  dropout=FLAGS.lstm_dropout,
                  recurrent_dropout=FLAGS.lstm_recurrent_dropout,
-                 return_sequences=return_sequences)
+                 return_sequences=return_sequences,
+                 kernel_initializer=RandomUniform(minval=-FLAGS.init_scale,
+                                                  maxval=FLAGS.init_scale,
+                                                  seed=SEED),
+                 recurrent_initializer=RandomUniform(minval=-FLAGS.init_scale,
+                                                     maxval=FLAGS.init_scale,
+                                                     seed=SEED),
+
+                 )
     # if bidirectional
     if FLAGS.bilstm:
         layer = Bidirectional(layer)
@@ -170,10 +192,10 @@ if str(FLAGS.optimizer).lower() == 'sgd':
     optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
 
 elif FLAGS.optimizer == 'adam':
-    optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
+    optimizer = Adam(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
 
 elif FLAGS.optimizer == 'rmsprop':
-    optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
+    optimizer = RMSprop(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
 
 # compiling model
 model.compile(loss='binary_crossentropy',
@@ -194,6 +216,17 @@ if FLAGS.early_stop_patience > 0:
 if FLAGS.log_tensorboard:
     tensorboard = TensorBoard(log_dir=FLAGS.train_dir + '/logs')
     callbacks.append(tensorboard)
+
+
+def lr_scheduler(epoch):
+    lr_decay = FLAGS.lr_decay **  max(epoch - FLAGS.start_decay, 0.0)
+    return lt * lr_decay
+
+
+if FLAGS.start_epoch > 0:
+    lrate = LearningRateScheduler(lr_scheduler)
+    callbacks.append(lrate)
+
 
 print('Train...')
 model.fit(x_train,
