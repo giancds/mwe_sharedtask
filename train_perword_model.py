@@ -10,8 +10,9 @@ from keras.utils import np_utils
 
 from keras.models import Sequential
 from keras.optimizers import SGD, Adam, RMSprop
-from keras.layers import Dense, Embedding, SpatialDropout1D, LSTM, Bidirectional
-from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint
+from keras.layers import Dense, Embedding, SpatialDropout1D, LSTM, Bidirectional, Dropout
+from keras.initializers import RandomUniform
+from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
 from keras.callbacks.tensorboard_v1 import TensorBoard
 
 from sklearn.metrics import confusion_matrix, classification_report
@@ -54,25 +55,34 @@ flags.DEFINE_integer("embed_dim", 100, "Dimension of embbeddings.")
 
 flags.DEFINE_float("spatial_dropout", 0.4, "Embbeddings dropout.")
 
+flags.DEFINE_float("dropout", 0.1, "Embbeddings dropout.")
+
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
 
-flags.DEFINE_integer("lstm_size", 100, "Dimension of LSTM layers.")
+flags.DEFINE_integer("lstm_size", 200, "Dimension of LSTM layers.")
 
-flags.DEFINE_float("lstm_dropout", 0.2, "LSTM regular dropout.")
+flags.DEFINE_float("lstm_dropout", 0.0, "LSTM regular dropout.")
 
 flags.DEFINE_float("lstm_recurrent_dropout", 0.2, "LSTM recurrent dropout.")
 
-flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
+flags.DEFINE_integer("n_layers", 2, "Number of LSTM layers.")
 
 flags.DEFINE_integer("batch_size", 32, "Size of batches.")
 
 flags.DEFINE_string("optimizer", 'adam',
                     "Which optimizer to use. One of adam, sgd and rmsprop.")
 
-flags.DEFINE_float("learning_rate", 0.0001, "Learning rate for the optimizer.")
+flags.DEFINE_float("learning_rate", 1.0, "Learning rate for the optimizer.")
 
-flags.DEFINE_float("clipnorm", 0.1, "Max norm size to clipt the gradients.")
+flags.DEFINE_float("lr_decay", (1.0/1.15), "Rate to which we deca they learning rate during training.")
+
+flags.DEFINE_integer("start_decay", 6, "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs")
+
+flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
+
+flags.DEFINE_float("init_scale", 0.05, "Range to initialize the weights of the model.")
+
 
 FLAGS = flags.FLAGS
 
@@ -145,7 +155,12 @@ print("Building model...")
 model = Sequential()
 # embedding
 model.add(Embedding(upos, FLAGS.embed_dim, input_length=x_train.shape[1]))
-model.add(SpatialDropout1D(FLAGS.spatial_dropout))
+
+if FLAGS.spatial_dropout:
+    model.add(SpatialDropout1D(FLAGS.dropout))
+else:
+    model.add(Dropout(FLAGS.dropout))
+
 # LSTMs
 for layer in range(FLAGS.n_layers):
     # return_sequences = False if layer == FLAGS.n_layers - 1 else True
@@ -161,15 +176,14 @@ for layer in range(FLAGS.n_layers):
 # softmax
 model.add(Dense(n_labels, activation='softmax'))
 
-optimizer = None
 if str(FLAGS.optimizer).lower() == 'sgd':
     optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
 
 elif FLAGS.optimizer == 'adam':
-    optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
+    optimizer = Adam(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
 
 elif FLAGS.optimizer == 'rmsprop':
-    optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
+    optimizer = RMSprop(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
 
 # compiling model
 model.compile(loss='binary_crossentropy',
@@ -191,6 +205,16 @@ if FLAGS.log_tensorboard:
     tensorboard = TensorBoard(log_dir=FLAGS.train_dir + '/logs')
     callbacks.append(tensorboard)
 
+
+def lr_scheduler(epoch, lr):
+    lr_decay = FLAGS.lr_decay **  max(epoch - FLAGS.start_decay, 0.0)
+    return lr * lr_decay
+
+
+if FLAGS.start_decay > 0:
+    lrate = LearningRateScheduler(lr_scheduler)
+    callbacks.append(lrate)
+
 print('Train...')
 model.fit(x_train,
           np_utils.to_categorical(y_train),
@@ -210,8 +234,6 @@ lens = [len(i) for i in dev_labels]
 y_true = []
 y_pred = []
 for i in range(y_dev.shape[0]):
-    # y_true += y_dev[i, -lens[i]:].tolist()
-    # y_pred += _y_pred[i, -lens[i]:].tolist()
     y_true += y_dev[i, 0:lens[i]].tolist()
     y_pred += _y_pred[i, 0:lens[i]].tolist()
 

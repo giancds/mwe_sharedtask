@@ -62,7 +62,7 @@ flags.DEFINE_boolean("bilstm", False,
 
 flags.DEFINE_integer("lstm_size", 200, "Dimension of LSTM layers.")
 
-flags.DEFINE_float("lstm_dropout", 0.2, "LSTM regular dropout.")
+flags.DEFINE_float("lstm_dropout", 0.0, "LSTM regular dropout.")
 
 flags.DEFINE_float("lstm_recurrent_dropout", 0.0, "LSTM recurrent dropout.")
 
@@ -73,7 +73,7 @@ flags.DEFINE_integer("batch_size", 32, "Size of batches.")
 flags.DEFINE_string("optimizer", 'sgd',
                     "Which optimizer to use. One of adam, sgd and rmsprop.")
 
-flags.DEFINE_float("learning_rate", 0.1, "Learning rate for the optimizer.")
+flags.DEFINE_float("learning_rate", 1.0, "Learning rate for the optimizer.")
 
 flags.DEFINE_float("lr_decay", (1.0/1.15), "Rate to which we deca they learning rate during training.")
 
@@ -202,16 +202,19 @@ model.compile(loss='binary_crossentropy',
               optimizer=optimizer,
               metrics=['accuracy'])
 
+
 print(model.summary())
 checkpoint = ModelCheckpoint(FLAGS.train_dir + FLAGS.model_name,
                              save_best_only=True)
 callbacks = [checkpoint]
+
 
 if FLAGS.early_stop_patience > 0:
     early_stop = EarlyStopping(monitor='val_loss',
                                min_delta=FLAGS.early_stop_delta,
                                patience=FLAGS.early_stop_patience)
     callbacks.append(early_stop)
+
 
 if FLAGS.log_tensorboard:
     tensorboard = TensorBoard(log_dir=FLAGS.train_dir + '/logs')
