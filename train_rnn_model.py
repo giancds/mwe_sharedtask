@@ -12,7 +12,7 @@ from keras.models import Sequential
 from keras.optimizers import SGD, Adam, RMSprop
 from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Bidirectional, Dropout
 from keras.initializers import RandomUniform
-from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint
+from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
 from keras.callbacks.tensorboard_v1 import TensorBoard
 
 from sklearn.metrics import confusion_matrix, classification_report
@@ -218,12 +218,12 @@ if FLAGS.log_tensorboard:
     callbacks.append(tensorboard)
 
 
-def lr_scheduler(epoch):
+def lr_scheduler(epoch, lr):
     lr_decay = FLAGS.lr_decay **  max(epoch - FLAGS.start_decay, 0.0)
-    return lt * lr_decay
+    return lr * lr_decay
 
 
-if FLAGS.start_epoch > 0:
+if FLAGS.start_decay > 0:
     lrate = LearningRateScheduler(lr_scheduler)
     callbacks.append(lrate)
 
