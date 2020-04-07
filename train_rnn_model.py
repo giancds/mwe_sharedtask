@@ -17,7 +17,7 @@ from keras.callbacks.tensorboard_v1 import TensorBoard
 
 from sklearn.metrics import confusion_matrix, classification_report
 
-from preprocess import extract_dataset
+from preprocess import extract_dataset, build_model_name
 
 # #####
 # Hyper-parametsr definitions
@@ -46,12 +46,10 @@ flags.DEFINE_float("early_stop_delta", 0.001,
 flags.DEFINE_boolean("log_tensorboard", False,
                      "Whether or not to log info using tensorboard")
 
-flags.DEFINE_string("model_name", "model.ckpt", "Model name")
-
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
 
-flags.DEFINE_integer("embed_dim", 30, "Dimension of embbeddings.")
+flags.DEFINE_integer("embed_dim", 100, "Dimension of embbeddings.")
 
 flags.DEFINE_boolean("spatial_dropout", False, "Whether or  to use spatial dropout for Embbeddings.")
 
@@ -60,13 +58,26 @@ flags.DEFINE_float("dropout", 0.1, "Embbeddings dropout.")
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
 
-flags.DEFINE_integer("lstm_size", 200, "Dimension of LSTM layers.")
+
+flags.DEFINE_integer("lstm_size", 50, "Dimension of LSTM layers.")
 
 flags.DEFINE_float("lstm_dropout", 0.0, "LSTM regular dropout.")
 
 flags.DEFINE_float("lstm_recurrent_dropout", 0.0, "LSTM recurrent dropout.")
 
-flags.DEFINE_integer("n_layers", 2, "Number of LSTM layers.")
+flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
+
+flags.DEFINE_string("output_activation", 'sigmoid',
+                    "Activation for the output layer.")
+
+flags.DEFINE_integer("output_size", 2,
+                      "Size of the output layer. Only relevant when using sigmoid output.")
+
+flags.DEFINE_float("output_threshold", 0.5,
+                   "Threshold to classify a sentence as idiomatic or not. Only relevant when using sigmoid output.")
+
+flags.DEFINE_string("loss_function", 'binary_crossentropy',
+                    "Loss function to use during training.")
 
 flags.DEFINE_integer("batch_size", 32, "Size of batches.")
 
@@ -87,6 +98,11 @@ flags.DEFINE_float("init_scale", 0.05, "Range to initialize the weights of the m
 
 FLAGS = flags.FLAGS
 
+model_name = build_model_name(FLAGS)
+
+print('\nModel name {}\n'.format(model_name))
+
+
 # #####
 # Loading data
 #
@@ -99,11 +115,11 @@ upos = 18     # number of upos in the train dataset
 
 # train dataset
 
-train_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'train.cupt':
-            train_files.append(os.path.join(root, file))
+train_files = ['data/GA/train.cupt']
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'train.cupt':
+#             train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files)
 
@@ -125,11 +141,11 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
 
 # validation/dev dataset
 
-dev_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'dev.cupt':
-            dev_files.append(os.path.join(root, file))
+dev_files = ['data/GA/dev.cupt']
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'dev.cupt':
+#             dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files)
 
@@ -182,8 +198,13 @@ for layer in range(FLAGS.n_layers):
         layer = Bidirectional(layer)
     model.add(layer)
     model.add(Dropout(FLAGS.lstm_dropout))
-# softmax
-model.add(Dense(2, activation='softmax'))
+
+if FLAGS.output_size  == 1:
+    model.add(Dense(1, activation='sigmoid'))
+else:
+    model.add(Dense(2, activation=FLAGS.output_activation))
+    y_train = np_utils.to_categorical(y_train)
+    y_val = np_utils.to_categorical(y_val)
 
 
 
@@ -198,13 +219,13 @@ elif FLAGS.optimizer == 'rmsprop':
     optimizer = RMSprop(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
 
 # compiling model
-model.compile(loss='binary_crossentropy',
+model.compile(loss=FLAGS.loss_function,
               optimizer=optimizer,
               metrics=['accuracy'])
 
 
 print(model.summary())
-checkpoint = ModelCheckpoint(FLAGS.train_dir + FLAGS.model_name,
+checkpoint = ModelCheckpoint(FLAGS.train_dir + model_name,
                              save_best_only=True)
 callbacks = [checkpoint]
 
@@ -232,19 +253,20 @@ if FLAGS.start_decay > 0:
 
 
 print('Train...')
-model.fit(x_train,
-          np_utils.to_categorical(y_train),
+model.fit(x_train, y_train,
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
-          verbose=2,
-          validation_data=(x_val, np_utils.to_categorical(y_val)))
+          verbose=1,
+          validation_data=(x_val, y_val))
 
 # #####
 # Evaluation time
 #
-
-y_pred = model.predict(x_dev).argmax(axis=1)
+if FLAGS.output_size  == 1:
+    y_pred = model.predict(x_dev).astype('int')
+else:
+    y_pred = model.predict(x_dev).argmax(axis=1)
 
 print('Confusion matrix:')
 print(confusion_matrix(y_dev, y_pred))

@@ -38,7 +38,6 @@ mkdir -p $MODEL_DIR
 
 python3 -u train_rnn_model.py \
   --train_dir=$MODEL_DIR \
-  --model_name='model.ckpt' \
   --log_tensorboard=False \
   --max_epochs=100 \
   --early_stop_patience=10 \
@@ -51,6 +50,10 @@ python3 -u train_rnn_model.py \
   --lstm_size=100 \
   --lstm_dropout=0.2 \
   --lstm_recurrent_dropout=0.0 \
+  --output_activation='sigmoid' \
+  --output_size=2 \
+  --output_threshold=0.5 \
+  --loss_function='binary_crossentropy' \
   --batch_size=32 \
   --optimizer='sgd' \
   --learning_rate=1.0\
@@ -60,6 +63,15 @@ python3 -u train_rnn_model.py \
   --init_scale=0.05
 ```
 
+**Note**: `output_threshold` is only relevant when using in combination with `--output_activation='sigmoid'` and `--output_size=1`. Otherwise it is irrelevant.
+
+
+## Doing:
+
+* Named entity recognition approach for per word labeling
+
 ## TODOs:
 
 * `Grid-search`
+* NMT approach for per word labeling
+* Transformers

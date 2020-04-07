@@ -60,6 +60,10 @@ flags.DEFINE_float("dropout", 0.1, "Embbeddings dropout.")
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
 
+flags.DEFINE_string("output_activation", 'sigmoid',
+                    "Activation for the output layer.")
+
+
 flags.DEFINE_integer("lstm_size", 200, "Dimension of LSTM layers.")
 
 flags.DEFINE_float("lstm_dropout", 0.0, "LSTM regular dropout.")
