@@ -100,7 +100,7 @@ def build_model_name(FLAGS):
                 FLAGS.lstm_recurrent_dropout,
                 FLAGS.output_size,
                 FLAGS.output_activation,
-                (FLAGS.output_threshold + 'outThresh.') if FLAGS.output_size == 1 and  FLAGS.output_activation == 'sigmoid' else '',
+                (str(FLAGS.output_threshold) + 'outThresh.') if FLAGS.output_size == 1 and  FLAGS.output_activation == 'sigmoid' else '',
                 FLAGS.loss_function,
                 FLAGS.batch_size,
                 FLAGS.optimizer,
