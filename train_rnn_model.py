@@ -257,7 +257,7 @@ model.fit(x_train, y_train,
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
-          verbose=1,
+          verbose=2,
           validation_data=(x_val, y_val))
 
 # #####
