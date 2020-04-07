@@ -17,7 +17,7 @@ from keras.callbacks.tensorboard_v1 import TensorBoard
 
 from sklearn.metrics import confusion_matrix, classification_report
 
-from preprocess import extract_dataset
+from preprocess import extract_dataset, build_model_name
 
 # #####
 # Hyper-parametsr definitions
@@ -34,7 +34,7 @@ TRAIN_DIR = "train_mwe_classifier"
 upos = 18     # number of upos in the train dataset
 n_labels = 2
 
-flags.DEFINE_integer("max_epochs", 1,
+flags.DEFINE_integer("max_epochs", 100,
                      "Max number of epochs to train the models")
 
 flags.DEFINE_integer("early_stop_patience", 10,
@@ -46,35 +46,42 @@ flags.DEFINE_float("early_stop_delta", 0.001,
 flags.DEFINE_boolean("log_tensorboard", False,
                      "Whether or not to log info using tensorboard")
 
-flags.DEFINE_string("model_name", "pwmodel.ckpt", "Model name")
-
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
 
 flags.DEFINE_integer("embed_dim", 100, "Dimension of embbeddings.")
 
-flags.DEFINE_float("spatial_dropout", 0.4, "Embbeddings dropout.")
+flags.DEFINE_boolean("spatial_dropout", False, "Whether or  to use spatial dropout for Embbeddings.")
 
 flags.DEFINE_float("dropout", 0.1, "Embbeddings dropout.")
 
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
 
-flags.DEFINE_string("output_activation", 'sigmoid',
-                    "Activation for the output layer.")
 
-
-flags.DEFINE_integer("lstm_size", 200, "Dimension of LSTM layers.")
+flags.DEFINE_integer("lstm_size", 50, "Dimension of LSTM layers.")
 
 flags.DEFINE_float("lstm_dropout", 0.0, "LSTM regular dropout.")
 
-flags.DEFINE_float("lstm_recurrent_dropout", 0.2, "LSTM recurrent dropout.")
+flags.DEFINE_float("lstm_recurrent_dropout", 0.0, "LSTM recurrent dropout.")
 
-flags.DEFINE_integer("n_layers", 2, "Number of LSTM layers.")
+flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
+
+flags.DEFINE_string("output_activation", 'sigmoid',
+                    "Activation for the output layer.")
+
+flags.DEFINE_integer("output_size", 2,
+                      "Size of the output layer. Only relevant when using sigmoid output.")
+
+flags.DEFINE_float("output_threshold", 0.5,
+                   "Threshold to classify a sentence as idiomatic or not. Only relevant when using sigmoid output.")
+
+flags.DEFINE_string("loss_function", 'binary_crossentropy',
+                    "Loss function to use during training.")
 
 flags.DEFINE_integer("batch_size", 32, "Size of batches.")
 
-flags.DEFINE_string("optimizer", 'adam',
+flags.DEFINE_string("optimizer", 'sgd',
                     "Which optimizer to use. One of adam, sgd and rmsprop.")
 
 flags.DEFINE_float("learning_rate", 1.0, "Learning rate for the optimizer.")
@@ -88,7 +95,12 @@ flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 flags.DEFINE_float("init_scale", 0.05, "Range to initialize the weights of the model.")
 
 
+
 FLAGS = flags.FLAGS
+
+model_name = build_model_name(FLAGS)
+
+print('\nModel name {}\n'.format(model_name))
 
 # #####
 # Loading data
@@ -177,8 +189,15 @@ for layer in range(FLAGS.n_layers):
     if FLAGS.bilstm:
         layer = Bidirectional(layer)
     model.add(layer)
-# softmax
-model.add(Dense(n_labels, activation='softmax'))
+
+if FLAGS.output_size  == 1:
+    model.add(Dense(1, activation='sigmoid'))
+
+else:
+    model.add(Dense(n_labels, activation=FLAGS.output_activation))
+    y_train = np_utils.to_categorical(y_train)
+    y_val = np_utils.to_categorical(y_val)
+
 
 if str(FLAGS.optimizer).lower() == 'sgd':
     optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
@@ -231,18 +250,13 @@ model.fit(x_train,
 # Evaluation time
 #
 
-_y_pred = model.predict(x_dev).argmax(axis=2)
-
-
-lens = [len(i) for i in dev_labels]
-y_true = []
-y_pred = []
-for i in range(y_dev.shape[0]):
-    y_true += y_dev[i, 0:lens[i]].tolist()
-    y_pred += _y_pred[i, 0:lens[i]].tolist()
+if FLAGS.output_size  == 1:
+    y_pred = model.predict(x_dev).astype('int')
+else:
+    y_pred = model.predict(x_dev).argmax(axis=1)
 
 print('Confusion matrix:')
-print(confusion_matrix(y_true, y_pred))
+print(confusion_matrix(y_dev, y_pred))
 
 print('\n\nReport')
-print(classification_report(y_true, y_pred))
+print(classification_report(y_dev, y_pred))
