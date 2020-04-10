@@ -265,12 +265,22 @@ model.fit(x_train, y_train,
 #
 
 if FLAGS.output_size  == 1:
-    y_pred = model.predict(x_dev).astype('int')
+    _y_pred = model.predict(x_dev).astype('int')
 else:
-    y_pred = model.predict(x_dev).argmax(axis=1)
+    _y_pred = model.predict(x_dev).argmax(axis=2)
+
+
+lens = [len(i) for i in dev_labels]
+y_pred = []
+y_true = []
+for i, l in enumerate(lens):
+    y_pred += _y_pred[i, 0:l].tolist()
+    y_true += y_dev[i, 0:l].tolist()
+
+
 
 print('Confusion matrix:')
-print(confusion_matrix(y_dev, y_pred))
+print(confusion_matrix(y_true, y_pred))
 
 print('\n\nReport')
-print(classification_report(y_dev, y_pred))
+print(classification_report(y_true, y_pred))
