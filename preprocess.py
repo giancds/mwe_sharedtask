@@ -82,8 +82,8 @@ def _build_per_word_dataset(text):
     return examples
 
 
-def build_model_name(FLAGS):
-    name = ('sentlevel_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}dropout.{6}-{7}-{8}lstm.'
+def build_model_name(name, FLAGS):
+    name = ('{21}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}dropout.{6}-{7}-{8}lstm.'
             '{9}lstmDrop.{10}lstmRecDrop.{11}-{12}.'
             '{14}Loss.{15}batch.{16}.{17}lr.{18}-{19}decay.{20}norm.'
             '{21}initScale.ckpt').format(
@@ -108,6 +108,7 @@ def build_model_name(FLAGS):
                 FLAGS.lr_decay,
                 FLAGS.start_decay,
                 FLAGS.clipnorm,
-                FLAGS.init_scale
+                FLAGS.init_scale,
+                name
                 )
     return name

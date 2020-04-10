@@ -24,6 +24,7 @@ from preprocess import extract_dataset, build_model_name
 #
 
 # pylint: disable=W0613,C0103,C0112
+SEED = 42
 BASE_DIR = os.path.expanduser("~")     # this will point to the user's home
 TRAIN_DIR = "train_mwe_classifier"
 
@@ -31,8 +32,11 @@ TRAIN_DIR = "train_mwe_classifier"
 # Some hyperparameter definitions
 #
 
+
+
 upos = 18     # number of upos in the train dataset
 n_labels = 2
+
 
 flags.DEFINE_integer("max_epochs", 100,
                      "Max number of epochs to train the models")
@@ -98,7 +102,7 @@ flags.DEFINE_float("init_scale", 0.05, "Range to initialize the weights of the m
 
 FLAGS = flags.FLAGS
 
-model_name = build_model_name(FLAGS)
+model_name = build_model_name('perword', FLAGS)
 
 print('\nModel name {}\n'.format(model_name))
 
@@ -170,8 +174,12 @@ print("Building model...")
 
 model = Sequential()
 # embedding
-model.add(Embedding(upos, FLAGS.embed_dim, input_length=x_train.shape[1]))
-
+model.add(Embedding(upos,
+                    FLAGS.embed_dim,
+                    input_length=x_train.shape[1],
+                    embeddings_initializer=RandomUniform(minval=-FLAGS.init_scale,
+                                                         maxval=FLAGS.init_scale,
+                                                         seed=SEED)))
 if FLAGS.spatial_dropout:
     model.add(SpatialDropout1D(FLAGS.dropout))
 else:
@@ -180,21 +188,28 @@ else:
 # LSTMs
 for layer in range(FLAGS.n_layers):
     # return_sequences = False if layer == FLAGS.n_layers - 1 else True
-    return_sequences = True
     layer = LSTM(FLAGS.lstm_size,
-                 dropout=FLAGS.lstm_dropout,
+                #  dropout=FLAGS.lstm_dropout,
                  recurrent_dropout=FLAGS.lstm_recurrent_dropout,
-                 return_sequences=return_sequences)
+                 return_sequences=True,
+                 kernel_initializer=RandomUniform(minval=-FLAGS.init_scale,
+                                                  maxval=FLAGS.init_scale,
+                                                  seed=SEED),
+                 recurrent_initializer=RandomUniform(minval=-FLAGS.init_scale,
+                                                     maxval=FLAGS.init_scale,
+                                                     seed=SEED),
+
+                 )
     # if bidirectional
     if FLAGS.bilstm:
         layer = Bidirectional(layer)
     model.add(layer)
+    model.add(Dropout(FLAGS.lstm_dropout))
 
 if FLAGS.output_size  == 1:
     model.add(Dense(1, activation='sigmoid'))
-
 else:
-    model.add(Dense(n_labels, activation=FLAGS.output_activation))
+    model.add(Dense(2, activation=FLAGS.output_activation))
     y_train = np_utils.to_categorical(y_train)
     y_val = np_utils.to_categorical(y_val)
 
@@ -214,7 +229,7 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 
 print(model.summary())
-checkpoint = ModelCheckpoint(FLAGS.train_dir + FLAGS.model_name,
+checkpoint = ModelCheckpoint(FLAGS.train_dir + model_name,
                              save_best_only=True)
 callbacks = [checkpoint]
 
@@ -239,12 +254,11 @@ if FLAGS.start_decay > 0:
     callbacks.append(lrate)
 
 print('Train...')
-model.fit(x_train,
-          np_utils.to_categorical(y_train),
+model.fit(x_train, y_train,
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
-          validation_data=(x_val, np_utils.to_categorical(y_val)))
+          validation_data=(x_val, y_val))
 
 # #####
 # Evaluation time

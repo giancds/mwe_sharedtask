@@ -98,7 +98,7 @@ flags.DEFINE_float("init_scale", 0.05, "Range to initialize the weights of the m
 
 FLAGS = flags.FLAGS
 
-model_name = build_model_name(FLAGS)
+model_name = build_model_name('sentlevel', FLAGS)
 
 print('\nModel name {}\n'.format(model_name))
 
