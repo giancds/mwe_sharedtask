@@ -53,7 +53,7 @@ flags.DEFINE_boolean("log_tensorboard", False,
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
 
-flags.DEFINE_integer("embed_dim", 10, "Dimension of embbeddings.")
+flags.DEFINE_integer("embed_dim", 100, "Dimension of embbeddings.")
 
 flags.DEFINE_boolean("spatial_dropout", False, "Whether or  to use spatial dropout for Embbeddings.")
 
@@ -63,9 +63,9 @@ flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
 
 
-flags.DEFINE_integer("lstm_size", 50, "Dimension of LSTM layers.")
+flags.DEFINE_integer("lstm_size", 100, "Dimension of LSTM layers.")
 
-flags.DEFINE_float("lstm_dropout", 0.0, "LSTM regular dropout.")
+flags.DEFINE_float("lstm_dropout", 0.2, "LSTM regular dropout.")
 
 flags.DEFINE_float("lstm_recurrent_dropout", 0.0, "LSTM recurrent dropout.")
 
@@ -74,7 +74,7 @@ flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
 flags.DEFINE_string("output_activation", 'sigmoid',
                     "Activation for the output layer.")
 
-flags.DEFINE_integer("output_size", 1,
+flags.DEFINE_integer("output_size", 2,
                       "Size of the output layer. Only relevant when using sigmoid output.")
 
 flags.DEFINE_float("output_threshold", 0.5,
@@ -90,7 +90,7 @@ flags.DEFINE_string("optimizer", 'sgd',
 
 flags.DEFINE_float("learning_rate", 1.0, "Learning rate for the optimizer.")
 
-flags.DEFINE_float("lr_decay", (1.0/1.15), "Rate to which we deca they learning rate during training.")
+flags.DEFINE_float("lr_decay", 0.8, "Rate to which we deca they learning rate during training.")
 
 flags.DEFINE_integer("start_decay", 6, "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs")
 
