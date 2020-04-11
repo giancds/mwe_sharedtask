@@ -38,7 +38,7 @@ upos = 18     # number of upos in the train dataset
 n_labels = 2
 
 
-flags.DEFINE_integer("max_epochs", 100,
+flags.DEFINE_integer("max_epochs", 1,
                      "Max number of epochs to train the models")
 
 flags.DEFINE_integer("early_stop_patience", 10,
@@ -53,7 +53,7 @@ flags.DEFINE_boolean("log_tensorboard", False,
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
 
-flags.DEFINE_integer("embed_dim", 100, "Dimension of embbeddings.")
+flags.DEFINE_integer("embed_dim", 10, "Dimension of embbeddings.")
 
 flags.DEFINE_boolean("spatial_dropout", False, "Whether or  to use spatial dropout for Embbeddings.")
 
@@ -74,7 +74,7 @@ flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
 flags.DEFINE_string("output_activation", 'sigmoid',
                     "Activation for the output layer.")
 
-flags.DEFINE_integer("output_size", 2,
+flags.DEFINE_integer("output_size", 1,
                       "Size of the output layer. Only relevant when using sigmoid output.")
 
 flags.DEFINE_float("output_threshold", 0.5,
@@ -115,11 +115,12 @@ print('Pre-processing data...')
 # train dataset
 
 
-train_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'train.cupt':
-            train_files.append(os.path.join(root, file))
+train_files = ['data/GA/train.cupt']
+# train_files = []
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'train.cupt':
+#             train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, per_word=True)
 
@@ -146,11 +147,12 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   test_size=0.15,
                                                   random_state=42)
 
-dev_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'dev.cupt':
-            dev_files.append(os.path.join(root, file))
+dev_files = ['data/GA/dev.cupt']
+# dev_files = []
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'dev.cupt':
+#             dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files, per_word=True)
 
@@ -208,6 +210,8 @@ for layer in range(FLAGS.n_layers):
 
 if FLAGS.output_size  == 1:
     model.add(Dense(1, activation='sigmoid'))
+    y_train = np.expand_dims(y_train, axis=2)
+    y_val = np.expand_dims(y_val, axis=2)
 else:
     model.add(Dense(2, activation=FLAGS.output_activation))
     y_train = np_utils.to_categorical(y_train)
