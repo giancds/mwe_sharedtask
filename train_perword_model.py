@@ -53,28 +53,28 @@ flags.DEFINE_boolean("log_tensorboard", False,
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
 
-flags.DEFINE_integer("embed_dim", 100, "Dimension of embbeddings.")
+flags.DEFINE_integer("embed_dim", 10, "Dimension of embbeddings.")
 
 flags.DEFINE_boolean("spatial_dropout", False, "Whether or  to use spatial dropout for Embbeddings.")
 
-flags.DEFINE_float("dropout", 0.1, "Embbeddings dropout.")
+flags.DEFINE_float("dropout", 0.2, "Embbeddings dropout.")
 
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
 
 
-flags.DEFINE_integer("lstm_size", 100, "Dimension of LSTM layers.")
+flags.DEFINE_integer("lstm_size", 50, "Dimension of LSTM layers.")
 
-flags.DEFINE_float("lstm_dropout", 0.2, "LSTM regular dropout.")
+flags.DEFINE_float("lstm_dropout", 0.5, "LSTM regular dropout.")
 
 flags.DEFINE_float("lstm_recurrent_dropout", 0.0, "LSTM recurrent dropout.")
 
-flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
+flags.DEFINE_integer("n_layers", 4, "Number of LSTM layers.")
 
 flags.DEFINE_string("output_activation", 'sigmoid',
                     "Activation for the output layer.")
 
-flags.DEFINE_integer("output_size", 2,
+flags.DEFINE_integer("output_size", 1,
                       "Size of the output layer. Only relevant when using sigmoid output.")
 
 flags.DEFINE_float("output_threshold", 0.5,
@@ -83,16 +83,16 @@ flags.DEFINE_float("output_threshold", 0.5,
 flags.DEFINE_string("loss_function", 'binary_crossentropy',
                     "Loss function to use during training.")
 
-flags.DEFINE_integer("batch_size", 32, "Size of batches.")
+flags.DEFINE_integer("batch_size", 24, "Size of batches.")
 
-flags.DEFINE_string("optimizer", 'sgd',
+flags.DEFINE_string("optimizer", 'adam',
                     "Which optimizer to use. One of adam, sgd and rmsprop.")
 
-flags.DEFINE_float("learning_rate", 1.0, "Learning rate for the optimizer.")
+flags.DEFINE_float("learning_rate", 0.0001, "Learning rate for the optimizer.")
 
 flags.DEFINE_float("lr_decay", 0.8, "Rate to which we deca they learning rate during training.")
 
-flags.DEFINE_integer("start_decay", 6, "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs")
+flags.DEFINE_integer("start_decay", 0, "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs")
 
 flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 
@@ -115,12 +115,11 @@ print('Pre-processing data...')
 # train dataset
 
 
-train_files = ['data/GA/train.cupt']
-# train_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'train.cupt':
-#             train_files.append(os.path.join(root, file))
+train_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'train.cupt':
+            train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, per_word=True)
 
@@ -147,12 +146,11 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   test_size=0.15,
                                                   random_state=42)
 
-dev_files = ['data/GA/dev.cupt']
-# dev_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'dev.cupt':
-#             dev_files.append(os.path.join(root, file))
+dev_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'dev.cupt':
+            dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files, per_word=True)
 
