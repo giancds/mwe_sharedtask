@@ -114,12 +114,11 @@ upos = 18     # number of upos in the train dataset
 
 # train dataset
 
-train_files = ['data/GA/train.cupt']
-# train_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'train.cupt':
-#             train_files.append(os.path.join(root, file))
+train_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'train.cupt':
+            train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files)
 
@@ -140,12 +139,11 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
 
 # validation/dev dataset
 
-dev_files = ['data/GA/dev.cupt']
-# dev_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'dev.cupt':
-#             dev_files.append(os.path.join(root, file))
+dev_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'dev.cupt':
+            dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files)
 
