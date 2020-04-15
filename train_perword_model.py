@@ -1,21 +1,11 @@
 import os
 
 import numpy as np
-from tensorflow.compat.v1 import flags
+import tensorflow as tf
 
 from sklearn.model_selection import train_test_split
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
-from keras.utils import np_utils
-
-from keras.models import Sequential
-from keras.optimizers import SGD, Adam, RMSprop
-from keras.layers import Dense, Embedding, SpatialDropout1D, LSTM, Bidirectional, Dropout
-from keras.initializers import RandomUniform
-from keras.callbacks.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
-from keras.callbacks.tensorboard_v1 import TensorBoard
-
 from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.utils import class_weight
 
 from preprocess import extract_dataset, build_model_name
 
@@ -32,11 +22,10 @@ TRAIN_DIR = "train_mwe_classifier"
 # Some hyperparameter definitions
 #
 
-
-
 upos = 18     # number of upos in the train dataset
 n_labels = 2
 
+flags = tf.compat.v1.flags
 
 flags.DEFINE_integer("max_epochs", 1,
                      "Max number of epochs to train the models")
@@ -55,13 +44,13 @@ flags.DEFINE_string("train_dir",
 
 flags.DEFINE_integer("embed_dim", 10, "Dimension of embbeddings.")
 
-flags.DEFINE_boolean("spatial_dropout", False, "Whether or  to use spatial dropout for Embbeddings.")
+flags.DEFINE_boolean("spatial_dropout", False,
+                     "Whether or  to use spatial dropout for Embbeddings.")
 
 flags.DEFINE_float("dropout", 0.2, "Embbeddings dropout.")
 
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
-
 
 flags.DEFINE_integer("lstm_size", 50, "Dimension of LSTM layers.")
 
@@ -69,19 +58,25 @@ flags.DEFINE_float("lstm_dropout", 0.5, "LSTM regular dropout.")
 
 flags.DEFINE_float("lstm_recurrent_dropout", 0.0, "LSTM recurrent dropout.")
 
-flags.DEFINE_integer("n_layers", 4, "Number of LSTM layers.")
+flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
 
 flags.DEFINE_string("output_activation", 'sigmoid',
                     "Activation for the output layer.")
 
-flags.DEFINE_integer("output_size", 1,
-                      "Size of the output layer. Only relevant when using sigmoid output.")
+flags.DEFINE_integer(
+    "output_size", 1,
+    "Size of the output layer. Only relevant when using sigmoid output.")
 
-flags.DEFINE_float("output_threshold", 0.5,
-                   "Threshold to classify a sentence as idiomatic or not. Only relevant when using sigmoid output.")
+flags.DEFINE_float(
+    "output_threshold", 0.5,
+    "Threshold to classify a sentence as idiomatic or not. Only relevant when using sigmoid output."
+)
 
 flags.DEFINE_string("loss_function", 'binary_crossentropy',
                     "Loss function to use during training.")
+
+flags.DEFINE_boolean("weighted_loss", True,
+                     "Whether or to use weighted loss for learning.")
 
 flags.DEFINE_integer("batch_size", 24, "Size of batches.")
 
@@ -90,15 +85,18 @@ flags.DEFINE_string("optimizer", 'adam',
 
 flags.DEFINE_float("learning_rate", 0.0001, "Learning rate for the optimizer.")
 
-flags.DEFINE_float("lr_decay", 0.8, "Rate to which we deca they learning rate during training.")
+flags.DEFINE_float("lr_decay", 0.8,
+                   "Rate to which we deca they learning rate during training.")
 
-flags.DEFINE_integer("start_decay", 0, "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs")
+flags.DEFINE_integer(
+    "start_decay", 0,
+    "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs"
+)
 
 flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 
-flags.DEFINE_float("init_scale", 0.05, "Range to initialize the weights of the model.")
-
-
+flags.DEFINE_float("init_scale", 0.05,
+                   "Range to initialize the weights of the model.")
 
 FLAGS = flags.FLAGS
 
@@ -114,7 +112,6 @@ print('Pre-processing data...')
 
 # train dataset
 
-
 train_files = []
 for root, dirs, files in os.walk('data/'):
     for file in files:
@@ -126,26 +123,25 @@ train_dataset = extract_dataset(train_files, per_word=True)
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
 
-tokenizer_pos = Tokenizer(num_words=upos + 1,
-                          split=' ')     # +1 to account for padding later
+tokenizer_pos = tf.keras.preprocessing.text.Tokenizer(
+    num_words=upos + 1, split=' ')     # +1 to account for padding later
 
 tokenizer_pos.fit_on_texts(train_sents)
 x_train = tokenizer_pos.texts_to_sequences(train_sents)
-x_train = pad_sequences(x_train, value=0.0,
-                        padding='post')     # pad to the longest sequence length
+x_train = tf.keras.preprocessing.sequence.pad_sequences(
+    x_train, value=0.0, padding='post')     # pad to the longest sequence length
 
-# tokenizer_lab.fit_on_texts(train_labels)
-# y_train = tokenizer_lab.texts_to_sequences(train_labels)
-y_train = pad_sequences(train_labels,
-                        maxlen=x_train.shape[1],
-                        value=-1.0,
-                        padding='post')     # pad to the longest sequence length
+y_train = tf.keras.preprocessing.sequence.pad_sequences(
+    train_labels, maxlen=x_train.shape[1], value=-1.0,
+    padding='post')     # pad to the longest sequence length
 
+# traind and validation split
 x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   y_train,
                                                   test_size=0.15,
                                                   random_state=42)
 
+# test dataset
 dev_files = []
 for root, dirs, files in os.walk('data/'):
     for file in files:
@@ -158,13 +154,15 @@ dev_sents = [d[0] for d in dev_dataset]
 dev_labels = [d[1] for d in dev_dataset]
 
 x_dev = tokenizer_pos.texts_to_sequences(dev_sents)
-x_dev = pad_sequences(x_dev, maxlen=x_train.shape[1], value=0.0, padding='post')
+x_dev = tf.keras.preprocessing.sequence.pad_sequences(x_dev,
+                                                      maxlen=x_train.shape[1],
+                                                      value=0.0,
+                                                      padding='post')
 
-# y_dev = tokenizer_lab.texts_to_sequences(dev_labels)
-y_dev = pad_sequences(dev_labels,
-                      maxlen=x_train.shape[1],
-                      value=-1.0,
-                      padding='post')
+y_dev = tf.keras.preprocessing.sequence.pad_sequences(dev_labels,
+                                                      maxlen=x_train.shape[1],
+                                                      value=-1.0,
+                                                      padding='post')
 
 # #####
 # Building and training the model
@@ -172,58 +170,74 @@ y_dev = pad_sequences(dev_labels,
 
 print("Building model...")
 
-model = Sequential()
+model = tf.keras.Sequential()
 # embedding
-model.add(Embedding(upos,
-                    FLAGS.embed_dim,
-                    input_length=x_train.shape[1],
-                    embeddings_initializer=RandomUniform(minval=-FLAGS.init_scale,
-                                                         maxval=FLAGS.init_scale,
-                                                         seed=SEED)))
+model.add(
+    tf.keras.layers.Embedding(
+        upos,
+        FLAGS.embed_dim,
+        input_length=x_train.shape[1],
+        # mask_zero=True,
+        embeddings_initializer=tf.random_uniform_initializer(
+            minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED)))
 if FLAGS.spatial_dropout:
-    model.add(SpatialDropout1D(FLAGS.dropout))
+    model.add(tf.keras.layers.SpatialDropout1D(FLAGS.dropout))
 else:
-    model.add(Dropout(FLAGS.dropout))
+    model.add(tf.keras.layers.Dropout(FLAGS.dropout))
 
 # LSTMs
 for layer in range(FLAGS.n_layers):
     # return_sequences = False if layer == FLAGS.n_layers - 1 else True
-    layer = LSTM(FLAGS.lstm_size,
-                #  dropout=FLAGS.lstm_dropout,
-                 recurrent_dropout=FLAGS.lstm_recurrent_dropout,
-                 return_sequences=True,
-                 kernel_initializer=RandomUniform(minval=-FLAGS.init_scale,
-                                                  maxval=FLAGS.init_scale,
-                                                  seed=SEED),
-                 recurrent_initializer=RandomUniform(minval=-FLAGS.init_scale,
-                                                     maxval=FLAGS.init_scale,
-                                                     seed=SEED),
-
-                 )
+    layer = tf.keras.layers.LSTM(
+        FLAGS.lstm_size,
+     #  dropout=FLAGS.lstm_dropout,
+        recurrent_dropout=FLAGS.lstm_recurrent_dropout,
+        return_sequences=True,
+        kernel_initializer=tf.random_uniform_initializer(
+            minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED),
+        recurrent_initializer=tf.random_uniform_initializer(
+            minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED),
+    )
     # if bidirectional
     if FLAGS.bilstm:
-        layer = Bidirectional(layer)
+        layer = tf.keras.layers.Bidirectional(layer)
     model.add(layer)
-    model.add(Dropout(FLAGS.lstm_dropout))
+    model.add(tf.keras.layers.Dropout(FLAGS.lstm_dropout))
 
-if FLAGS.output_size  == 1:
-    model.add(Dense(1, activation='sigmoid'))
+if FLAGS.output_size == 1:
+    model.add(
+        tf.keras.layers.Dense(1,
+                              activation='sigmoid',
+                              kernel_initializer=tf.random_uniform_initializer(
+                                  minval=-FLAGS.init_scale,
+                                  maxval=FLAGS.init_scale,
+                                  seed=SEED)))
     y_train = np.expand_dims(y_train, axis=2)
     y_val = np.expand_dims(y_val, axis=2)
 else:
-    model.add(Dense(2, activation=FLAGS.output_activation))
-    y_train = np_utils.to_categorical(y_train)
-    y_val = np_utils.to_categorical(y_val)
+    model.add(
+        tf.keras.layers.Dense(2,
+                              activation=FLAGS.output_activation,
+                              kernel_initializer=tf.random_uniform_initializer(
+                                  minval=-FLAGS.init_scale,
+                                  maxval=FLAGS.init_scale,
+                                  seed=SEED)))
+    y_train = tf.keras.utils.to_categorical(y_train)
+    y_val = tf.keras.utils.to_categorical(y_val)
 
-
+#
+# optimizers
 if str(FLAGS.optimizer).lower() == 'sgd':
-    optimizer = SGD(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
+    optimizer = tf.keras.optimizers.SGD(learning_rate=FLAGS.learning_rate,
+                                        clipnorm=FLAGS.clipnorm)
 
 elif FLAGS.optimizer == 'adam':
-    optimizer = Adam(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=FLAGS.learning_rate,
+                                         clipnorm=FLAGS.clipnorm)
 
 elif FLAGS.optimizer == 'rmsprop':
-    optimizer = RMSprop(learning_rate=FLAGS.learning_rate, clipnorm=FLAGS.clipnorm)
+    optimizer = tf.keras.optimizers.RMSprop(learning_rate=FLAGS.learning_rate,
+                                            clipnorm=FLAGS.clipnorm)
 
 # compiling model
 model.compile(loss='binary_crossentropy',
@@ -231,32 +245,49 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 
 print(model.summary())
-checkpoint = ModelCheckpoint(FLAGS.train_dir + model_name,
-                             save_best_only=True)
+checkpoint = tf.keras.callbacks.ModelCheckpoint(FLAGS.train_dir + model_name,
+                                                save_best_only=True)
 callbacks = [checkpoint]
 
 if FLAGS.early_stop_patience > 0:
-    early_stop = EarlyStopping(monitor='val_loss',
-                               min_delta=FLAGS.early_stop_delta,
-                               patience=FLAGS.early_stop_patience)
+    early_stop = tf.keras.callbacks.EarlyStopping(
+        monitor='val_loss',
+        min_delta=FLAGS.early_stop_delta,
+        patience=FLAGS.early_stop_patience)
     callbacks.append(early_stop)
 
 if FLAGS.log_tensorboard:
-    tensorboard = TensorBoard(log_dir=FLAGS.train_dir + '/logs')
+    tensorboard = tf.keras.callbacks.TensorBoard(log_dir=FLAGS.train_dir +
+                                                 '/logs')
     callbacks.append(tensorboard)
 
 
 def lr_scheduler(epoch, lr):
-    lr_decay = FLAGS.lr_decay **  max(epoch - FLAGS.start_decay, 0.0)
+    lr_decay = FLAGS.lr_decay**max(epoch - FLAGS.start_decay, 0.0)
     return lr * lr_decay
 
 
 if FLAGS.start_decay > 0:
-    lrate = LearningRateScheduler(lr_scheduler)
+    lrate = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
     callbacks.append(lrate)
 
+# calculate class weights for the imbalanced case
+class_weights = None
+if FLAGS.weighted_loss:
+    # class_weights = class_weight.compute_class_weight('balanced', np.unique(y_train.flatten()), y_train.flatten())
+    weights = class_weight.compute_class_weight(
+        'balanced', np.array([0, 1]),
+        np.array([i for j in train_labels for i in j]))
+    class_weights = {}
+    for i in range(weights.shape[0]):
+        class_weights[i] = weights[i]
+
+print('Class weights: {}'.format(class_weights))
+
 print('Train...')
-model.fit(x_train, y_train,
+model.fit(x_train,
+          y_train,
+          class_weight=class_weight,
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
@@ -266,11 +297,10 @@ model.fit(x_train, y_train,
 # Evaluation time
 #
 
-if FLAGS.output_size  == 1:
+if FLAGS.output_size == 1:
     _y_pred = model.predict(x_dev).astype('int')
 else:
     _y_pred = model.predict(x_dev).argmax(axis=2)
-
 
 lens = [len(i) for i in dev_labels]
 y_pred = []
@@ -278,8 +308,6 @@ y_true = []
 for i, l in enumerate(lens):
     y_pred += _y_pred[i, 0:l].tolist()
     y_true += y_dev[i, 0:l].tolist()
-
-
 
 print('Confusion matrix:')
 print(confusion_matrix(y_true, y_pred))

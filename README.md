@@ -57,6 +57,7 @@ python3 -u train_rnn_model.py \
   --output_size=2 \
   --output_threshold=0.5 \
   --loss_function='binary_crossentropy' \
+  --weighted_loss=True \
   --batch_size=32 \
   --optimizer='sgd' \
   --learning_rate=1.0\
@@ -95,6 +96,7 @@ python3 -u train_perword_model.py \
   --output_size=2 \
   --output_threshold=0.5 \
   --loss_function='binary_crossentropy' \
+  --weighted_loss=True \
   --batch_size=32 \
   --optimizer='sgd' \
   --learning_rate=1.0\
