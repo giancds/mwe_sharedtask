@@ -23,7 +23,7 @@ TRAIN_DIR = "train_mwe_classifier"
 # #####
 # Some hyperparameter definitions
 #
-verbose = 2
+
 upos = 18
 flags = tf.compat.v1.flags
 
@@ -103,6 +103,10 @@ flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 
 flags.DEFINE_float("init_scale", 0.05,
                    "Range to initialize the weights of the model.")
+
+flags.DEFINE_integer(
+    "verbose", 2, "Verbosity of training"
+)
 
 FLAGS = flags.FLAGS
 
@@ -285,7 +289,7 @@ keras_model = BoostedClassifier(
     batch_size=FLAGS.batch_size,
     epochs=FLAGS.max_epochs,
     callbacks=callbacks,
-    verbose=verbose,
+    verbose=FLAGS.verbose,
     validation_data=(x_val, y_val))
 
 classifier = AdaBoostClassifier(base_estimator=keras_model,

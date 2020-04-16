@@ -106,6 +106,9 @@ flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 flags.DEFINE_float("init_scale", 0.05,
                    "Range to initialize the weights of the model.")
 
+flags.DEFINE_integer(
+    "verbose", 2, "Verbosity of training"
+)
 FLAGS = flags.FLAGS
 
 model_name = build_model_name('perword', FLAGS)
@@ -308,7 +311,7 @@ keras_model = BoostedClassifier(
     batch_size=FLAGS.batch_size,
     epochs=FLAGS.max_epochs,
     callbacks=callbacks,
-    verbose=2,
+    verbose=FLAGS.verbose,
     max_length=x_train.shape[1],
     validation_data=(x_val, y_val))
 

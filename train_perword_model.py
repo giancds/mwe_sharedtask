@@ -98,6 +98,9 @@ flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 flags.DEFINE_float("init_scale", 0.05,
                    "Range to initialize the weights of the model.")
 
+flags.DEFINE_integer(
+    "verbose", 2, "Verbosity of training"
+)
 FLAGS = flags.FLAGS
 
 model_name = build_model_name('perword', FLAGS)
@@ -291,7 +294,7 @@ model.fit(x_train,
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
-          verbose=verbose,
+          verbose=FLAGS.verbose,
           validation_data=(x_val, y_val))
 
 # #####
