@@ -9,6 +9,7 @@ class BoostedClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
                  build_fn=None,
                  callbacks=None,
                  verbose=2,
+                 max_length=1,
                  validation_data=None,
                  output_size=2,
                  **sk_params):
@@ -18,7 +19,9 @@ class BoostedClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
         self.verbose = verbose
         self.validation_data = validation_data
         self.output_size = output_size
+        self.max_length = max_length
 
+        # sk_params['max_length_'] = max_length_
         sk_params['callbacks'] = callbacks
         sk_params['verbose'] = verbose
         sk_params['validation_data'] = validation_data
@@ -51,6 +54,9 @@ class BoostedClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
             ValueError: In case of invalid shape for `y` argument.
         """
         y = np.array(y)
+        if self.max_length > 1:
+            x = x.reshape(-1, self.max_length)
+            y = y.reshape(-1, self.max_length)
         if len(y.shape) == 2 and y.shape[1] > 1:
             self.classes_ = np.arange(y.shape[1])
         elif (len(y.shape) == 2 and y.shape[1] == 1) or len(y.shape) == 1:
