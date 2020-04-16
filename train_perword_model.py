@@ -21,7 +21,7 @@ TRAIN_DIR = "train_mwe_classifier"
 # #####
 # Some hyperparameter definitions
 #
-
+verbose = 2
 upos = 18     # number of upos in the train dataset
 n_labels = 2
 
@@ -291,7 +291,7 @@ model.fit(x_train,
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
-          verbose=2,
+          verbose=verbose,
           validation_data=(x_val, y_val))
 
 # #####

@@ -23,7 +23,7 @@ TRAIN_DIR = "train_mwe_classifier"
 # #####
 # Some hyperparameter definitions
 #
-
+verbose = 2
 upos = 18
 flags = tf.compat.v1.flags
 
@@ -106,7 +106,7 @@ flags.DEFINE_float("init_scale", 0.05,
 
 FLAGS = flags.FLAGS
 
-model_name = build_model_name('sentlevel', FLAGS)
+model_name = build_model_name('sentlevel_boost', FLAGS)
 
 print('\nModel name {}\n'.format(model_name))
 
@@ -285,7 +285,7 @@ keras_model = BoostedClassifier(
     batch_size=FLAGS.batch_size,
     epochs=FLAGS.max_epochs,
     callbacks=callbacks,
-    verbose=2,
+    verbose=verbose,
     validation_data=(x_val, y_val))
 
 classifier = AdaBoostClassifier(base_estimator=keras_model,

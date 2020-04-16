@@ -21,7 +21,7 @@ TRAIN_DIR = "train_mwe_classifier"
 # #####
 # Some hyperparameter definitions
 #
-
+verbose = 2
 upos = 18
 flags = tf.compat.v1.flags
 
@@ -170,6 +170,7 @@ model.add(
         upos,
         FLAGS.embed_dim,
         input_length=x_train.shape[1],
+        mask_zero=True,
         embeddings_initializer=tf.random_uniform_initializer(
             minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED)))
 if FLAGS.spatial_dropout:
@@ -268,7 +269,7 @@ model.fit(x_train,
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
-          verbose=2,
+          verbose=verbose,
           validation_data=(x_val, y_val))
 
 # #####
