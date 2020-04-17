@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.utils import class_weight
 
-from classifiers import BoostedClassifier
+from classifiers import BoostedTemporalClassifier
 from preprocess import extract_dataset, build_model_name
 
 # #####
@@ -210,8 +210,7 @@ def build_model():
         tf.keras.layers.Embedding(
             upos,
             FLAGS.embed_dim,
-            # input_length=x_train.shape[1],
-            input_length=1,
+            input_length=x_train.shape[1],
             mask_zero=True,
             embeddings_initializer=tf.random_uniform_initializer(
                 minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED)))
@@ -258,6 +257,7 @@ def build_model():
     # compiling model
     model.compile(loss='binary_crossentropy',
                 optimizer=optimizer,
+                sample_weight_mode='temporal',
                 metrics=['accuracy'])
 
     print(model.summary())
@@ -306,13 +306,12 @@ if FLAGS.weighted_loss:
 
 print('Class weights: {}'.format(class_weights))
 
-keras_model = BoostedClassifier(
+keras_model = BoostedTemporalClassifier(
     build_fn=build_model,
     batch_size=FLAGS.batch_size,
     epochs=FLAGS.max_epochs,
     callbacks=callbacks,
     verbose=FLAGS.verbose,
-    max_length=x_train.shape[1],
     validation_data=(x_val, y_val))
 
 classifier = AdaBoostClassifier(base_estimator=keras_model,
@@ -321,7 +320,6 @@ classifier = AdaBoostClassifier(base_estimator=keras_model,
                                 random_state=SEED)
 
 classifier.fit(x_train.flatten(), y_train.flatten())
-# classifier.fit(x_train, y_train)
 
 
 # #####

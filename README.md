@@ -64,7 +64,8 @@ python3 -u train_rnn_model.py \
   --lr_decay=0.5 \
   --start_decay=6\
   --clipnorm=5.0\
-  --init_scale=0.05
+  --init_scale=0.05\
+  --verbose=2
 ```
 
 **Note**: `output_threshold` is only relevant when using in combination with `--output_activation='sigmoid'` and `--output_size=1`. Otherwise it is irrelevant.
@@ -103,7 +104,8 @@ python3 -u train_perword_model.py \
   --lr_decay=0.8 \
   --start_decay=6\
   --clipnorm=5.0\
-  --init_scale=0.05
+  --init_scale=0.05\
+  --verbose=2
 ```
 
 **Note**: `output_threshold` is only relevant when using in combination with `--output_activation='sigmoid'` and `--output_size=1`. Otherwise it is irrelevant.
@@ -146,7 +148,8 @@ python3 -u train_rnn_model.py \
   --lr_decay=0.5 \
   --start_decay=6\
   --clipnorm=5.0\
-  --init_scale=0.05
+  --init_scale=0.05\
+  --verbose=2
 ```
 
 **Note**: `output_threshold` is only relevant when using in combination with `--output_activation='sigmoid'` and `--output_size=1`. Otherwise it is irrelevant.
