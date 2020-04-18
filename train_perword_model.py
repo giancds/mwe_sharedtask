@@ -64,7 +64,7 @@ flags.DEFINE_string("output_activation", 'sigmoid',
                     "Activation for the output layer.")
 
 flags.DEFINE_integer(
-    "output_size", 1,
+    "output_size", 2,
     "Size of the output layer. Only relevant when using sigmoid output.")
 
 flags.DEFINE_float(
@@ -115,11 +115,13 @@ print('Pre-processing data...')
 
 # train dataset
 
-train_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'train.cupt':
-            train_files.append(os.path.join(root, file))
+
+train_files = ['data/GA/train.cupt']
+# train_files = []
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'train.cupt':
+#             train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, per_word=True)
 
@@ -145,11 +147,12 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   random_state=42)
 
 # test dataset
-dev_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'dev.cupt':
-            dev_files.append(os.path.join(root, file))
+dev_files = ['data/GA/dev.cupt']
+# dev_files = []
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'dev.cupt':
+#             dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files, per_word=True)
 

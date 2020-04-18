@@ -114,7 +114,8 @@ class BoostedTemporalClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
         y = np.array(y)
         x = x.reshape(-1, self.validation_data[1].shape[1])
         y = y.reshape(-1, self.validation_data[1].shape[1])
-        y = np.expand_dims(y, axis=2)
+        y = tf.keras.utils.to_categorical(y)
+        # y = np.expand_dims(y, axis=2)
         self.n_classes_ = 2
         if sample_weight is not None:
             sample_weight = sample_weight.reshape(
@@ -145,4 +146,4 @@ class BoostedTemporalClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
         if probs.shape[1] == 1:
             # first column is probability of class 0 and second is of class 1
             probs = np.hstack([1 - probs, probs])
-        return probs
+        return probs.reshape(-1, self.n_classes_)

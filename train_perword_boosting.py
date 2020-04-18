@@ -72,7 +72,7 @@ flags.DEFINE_string("output_activation", 'sigmoid',
                     "Activation for the output layer.")
 
 flags.DEFINE_integer(
-    "output_size", 1,
+    "output_size", 2,
     "Size of the output layer. Only relevant when using sigmoid output.")
 
 flags.DEFINE_float(
@@ -157,6 +157,7 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
 if FLAGS.output_size == 1:
     y_val = np.expand_dims(y_val, axis=2)
 else:
+    # y_train = tf.keras.utils.to_categorical(y_train)
     y_val = tf.keras.utils.to_categorical(y_val)
 
 # test dataset
@@ -254,6 +255,7 @@ def build_model():
                                     minval=-FLAGS.init_scale,
                                     maxval=FLAGS.init_scale,
                                     seed=SEED)))
+
     # compiling model
     model.compile(loss='binary_crossentropy',
                 optimizer=optimizer,
@@ -320,6 +322,7 @@ classifier = AdaBoostClassifier(base_estimator=keras_model,
                                 random_state=SEED)
 
 classifier.fit(x_train.flatten(), y_train.flatten())
+# classifier.fit(x_train, y_train)
 
 
 # #####
