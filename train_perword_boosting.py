@@ -71,14 +71,14 @@ flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
 flags.DEFINE_string("output_activation", 'sigmoid',
                     "Activation for the output layer.")
 
-flags.DEFINE_integer(
-    "output_size", 2,
-    "Size of the output layer. Only relevant when using sigmoid output.")
+# flags.DEFINE_integer(
+#     "output_size", 2,
+#     "Size of the output layer. Only relevant when using sigmoid output.")
 
-flags.DEFINE_float(
-    "output_threshold", 0.5,
-    "Threshold to classify a sentence as idiomatic or not. Only relevant when using sigmoid output."
-)
+# flags.DEFINE_float(
+#     "output_threshold", 0.5,
+#     "Threshold to classify a sentence as idiomatic or not. Only relevant when using sigmoid output."
+# )
 
 flags.DEFINE_string("loss_function", 'binary_crossentropy',
                     "Loss function to use during training.")
@@ -154,11 +154,11 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   random_state=SEED)
 
 # need this for keras' loss functions
-if FLAGS.output_size == 1:
-    y_val = np.expand_dims(y_val, axis=2)
-else:
-    # y_train = tf.keras.utils.to_categorical(y_train)
-    y_val = tf.keras.utils.to_categorical(y_val)
+# if FLAGS.output_size == 1:
+#     y_val = np.expand_dims(y_val, axis=2)
+# else:
+#     # y_train = tf.keras.utils.to_categorical(y_train)
+y_val = tf.keras.utils.to_categorical(y_val)
 
 # test dataset
 # dev_files = ['data/GA/dev.cupt']
@@ -239,15 +239,6 @@ def build_model():
         model.add(layer)
         model.add(tf.keras.layers.Dropout(FLAGS.lstm_dropout))
 
-    if FLAGS.output_size == 1:
-        model.add(
-            tf.keras.layers.Dense(1,
-                                activation='sigmoid',
-                                kernel_initializer=tf.random_uniform_initializer(
-                                    minval=-FLAGS.init_scale,
-                                    maxval=FLAGS.init_scale,
-                                    seed=SEED)))
-    else:
         model.add(
             tf.keras.layers.Dense(2,
                                 activation=FLAGS.output_activation,
