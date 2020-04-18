@@ -123,12 +123,12 @@ print('Pre-processing data...')
 
 # train dataset
 
-train_files = ['data/GA/train.cupt']
-# train_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'train.cupt':
-#             train_files.append(os.path.join(root, file))
+# train_files = ['data/GA/train.cupt']
+train_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'train.cupt':
+            train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, per_word=True)
 
@@ -161,12 +161,12 @@ else:
     y_val = tf.keras.utils.to_categorical(y_val)
 
 # test dataset
-dev_files = ['data/GA/dev.cupt']
-# dev_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'dev.cupt':
-#             dev_files.append(os.path.join(root, file))
+# dev_files = ['data/GA/dev.cupt']
+dev_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'dev.cupt':
+            dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files, per_word=True)
 
