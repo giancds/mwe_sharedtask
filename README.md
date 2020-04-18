@@ -121,7 +121,7 @@ export MODEL_DIR=${HOME}/train_rnn_model/
 
 mkdir -p $MODEL_DIR
 
-python3 -u train_rnn_model.py \
+python3 -u train_rnn_boosting.py \
   --train_dir=$MODEL_DIR \
   --log_tensorboard=False \
   --n_estimators=50 \
@@ -163,7 +163,7 @@ export MODEL_DIR=${HOME}/train_rnn_model/
 
 mkdir -p $MODEL_DIR
 
-python3 -u train_rnn_model.py \
+python3 -u train_perword_boosting.py \
   --train_dir=$MODEL_DIR \
   --log_tensorboard=False \
   --n_estimators=50 \

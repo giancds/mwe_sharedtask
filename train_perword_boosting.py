@@ -12,7 +12,7 @@ from classifiers import BoostedTemporalClassifier
 from preprocess import extract_dataset, build_model_name
 
 # #####
-# Hyper-parametsr definitions
+# Hyper-parameters definitions
 #
 
 # pylint: disable=W0613,C0103,C0112
@@ -71,14 +71,14 @@ flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
 flags.DEFINE_string("output_activation", 'sigmoid',
                     "Activation for the output layer.")
 
-# flags.DEFINE_integer(
-#     "output_size", 2,
-#     "Size of the output layer. Only relevant when using sigmoid output.")
+flags.DEFINE_integer(
+    "output_size", 2,
+    "Size of the output layer. Only relevant when using sigmoid output.")
 
-# flags.DEFINE_float(
-#     "output_threshold", 0.5,
-#     "Threshold to classify a sentence as idiomatic or not. Only relevant when using sigmoid output."
-# )
+flags.DEFINE_float(
+    "output_threshold", 0.5,
+    "Threshold to classify a sentence as idiomatic or not. Only relevant when using sigmoid output."
+)
 
 flags.DEFINE_string("loss_function", 'binary_crossentropy',
                     "Loss function to use during training.")
