@@ -11,6 +11,9 @@ from sklearn.utils import class_weight
 from classifiers import BoostedTemporalClassifier
 from preprocess import extract_dataset, build_model_name, Features
 
+from tensorflow.python.framework.ops import disable_eager_execution
+disable_eager_execution()
+
 # #####
 # Hyper-parameters definitions
 #
@@ -60,7 +63,7 @@ flags.DEFINE_float("dropout", 0.2, "Embbeddings dropout.")
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
 
-flags.DEFINE_integer("lstm_size", 50, "Dimension of LSTM layers.")
+flags.DEFINE_integer("lstm_size", 10, "Dimension of LSTM layers.")
 
 flags.DEFINE_float("lstm_dropout", 0.5, "LSTM regular dropout.")
 
@@ -135,12 +138,12 @@ print('Pre-processing data...')
 
 # train dataset
 
-# train_files = ['data/GA/train.cupt']
-train_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'train.cupt':
-            train_files.append(os.path.join(root, file))
+train_files = ['data/GA/train.cupt']
+# train_files = []
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'train.cupt':
+#             train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, per_word=True, feature=_FEATURE)
 

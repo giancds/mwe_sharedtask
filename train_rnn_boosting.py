@@ -11,6 +11,9 @@ from sklearn.utils import class_weight
 from classifiers import BoostedClassifier
 from preprocess import extract_dataset, build_model_name, Features
 
+from tensorflow.python.framework.ops import disable_eager_execution
+disable_eager_execution()
+
 # #####
 # Hyper-parametsr definitions
 #
