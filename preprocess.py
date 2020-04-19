@@ -42,12 +42,12 @@ def process_cup(text):
     return pd.DataFrame(features)
 
 
-def extract_dataset(files, per_word=False):
+def extract_dataset(files, per_word=False, feature=Features.upos):
     data = []
     processing_func = _build_per_word_dataset if per_word else _build_dataset
     for file in files:
         with open(file) as f:
-            data += processing_func(f)
+            data += processing_func(f, feature=feature)
     return data
 
 

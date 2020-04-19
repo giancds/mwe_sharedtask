@@ -45,6 +45,7 @@ python3 -u train_rnn_model.py \
   --max_epochs=100 \
   --early_stop_patience=10 \
   --early_stop_delta=0.001 \
+  --feature='upos' \
   --embed_dim=100 \
   --dropout=0.1 \
   --spatial_dropout=False \
@@ -85,6 +86,7 @@ python3 -u train_perword_model.py \
   --max_epochs=100 \
   --early_stop_patience=10 \
   --early_stop_delta=0.001 \
+  --feature='upos' \
   --embed_dim=100 \
   --dropout=0.1 \
   --spatial_dropout=False \
@@ -129,6 +131,7 @@ python3 -u train_rnn_boosting.py \
   --max_epochs=100 \
   --early_stop_patience=10 \
   --early_stop_delta=0.001 \
+  --feature='upos' \
   --embed_dim=100 \
   --dropout=0.1 \
   --spatial_dropout=False \
@@ -171,6 +174,7 @@ python3 -u train_perword_boosting.py \
   --max_epochs=100 \
   --early_stop_patience=10 \
   --early_stop_delta=0.001 \
+  --feature='upos' \
   --embed_dim=50 \
   --dropout=0.1 \
   --spatial_dropout=False \

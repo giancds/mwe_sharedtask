@@ -44,9 +44,6 @@ flags.DEFINE_boolean("log_tensorboard", False,
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
 
-flags.DEFINE_string("feature", 'upos',
-                    "Which feature to use when training de model.")
-
 flags.DEFINE_integer("embed_dim", 10, "Dimension of embbeddings.")
 
 flags.DEFINE_boolean("spatial_dropout", False,
@@ -106,6 +103,9 @@ flags.DEFINE_float("init_scale", 0.05,
 flags.DEFINE_integer(
     "verbose", 2, "Verbosity of training"
 )
+
+flags.DEFINE_string("feature", 'upos',
+                    "Which feature to use when training de model.")
 FLAGS = flags.FLAGS
 
 
@@ -140,7 +140,7 @@ for root, dirs, files in os.walk('data/'):
         if file == 'train.cupt':
             train_files.append(os.path.join(root, file))
 
-train_dataset = extract_dataset(train_files, per_word=True)
+train_dataset = extract_dataset(train_files, per_word=True, feature=_FEATURE)
 
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
@@ -171,7 +171,7 @@ for root, dirs, files in os.walk('data/'):
         if file == 'dev.cupt':
             dev_files.append(os.path.join(root, file))
 
-dev_dataset = extract_dataset(dev_files, per_word=True)
+dev_dataset = extract_dataset(dev_files, per_word=True, feature=_FEATURE)
 
 dev_sents = [d[0] for d in dev_dataset]
 dev_labels = [d[1] for d in dev_dataset]

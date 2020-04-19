@@ -9,7 +9,7 @@ from sklearn.metrics import confusion_matrix, classification_report, f1_score
 from sklearn.utils import class_weight
 
 from classifiers import BoostedClassifier
-from preprocess import extract_dataset, build_model_name
+from preprocess import extract_dataset, build_model_name, Features
 
 # #####
 # Hyper-parametsr definitions
@@ -108,7 +108,19 @@ flags.DEFINE_integer(
     "verbose", 2, "Verbosity of training"
 )
 
+flags.DEFINE_string("feature", 'upos',
+                    "Which feature to use when training de model.")
 FLAGS = flags.FLAGS
+
+
+# define which feature we can use to train de model
+_FEATURE = Features.upos
+
+if FLAGS.feature == 'xpos':
+    _FEATURE = Features.xpos
+
+elif FLAGS.feature == 'deprel':
+    _FEATURE = Features.deprel
 
 model_name = build_model_name('sentlevel_boost', FLAGS)
 
@@ -131,7 +143,7 @@ for root, dirs, files in os.walk('data/'):
         if file == 'train.cupt':
             train_files.append(os.path.join(root, file))
 
-train_dataset = extract_dataset(train_files)
+train_dataset = extract_dataset(train_files, feature=_FEATURE)
 
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
@@ -161,7 +173,7 @@ for root, dirs, files in os.walk('data/'):
         if file == 'dev.cupt':
             dev_files.append(os.path.join(root, file))
 
-dev_dataset = extract_dataset(dev_files)
+dev_dataset = extract_dataset(dev_files, feature=_FEATURE)
 
 dev_sents = [d[0] for d in dev_dataset]
 dev_labels = [d[1] for d in dev_dataset]
