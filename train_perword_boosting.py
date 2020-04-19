@@ -32,13 +32,13 @@ n_labels = 2
 
 flags = tf.compat.v1.flags
 
-flags.DEFINE_integer("n_estimators", 5,
+flags.DEFINE_integer("n_estimators", 10,
                      "Number of models to train for the ensemble.")
 
 flags.DEFINE_float("boost_lr", 1.0,
                    "Learning rate for the contributions of each classifier.")
 
-flags.DEFINE_integer("max_epochs", 1,
+flags.DEFINE_integer("max_epochs", 100,
                      "Max number of epochs to train the models")
 
 flags.DEFINE_integer("early_stop_patience", 10,
@@ -63,7 +63,7 @@ flags.DEFINE_float("dropout", 0.2, "Embbeddings dropout.")
 flags.DEFINE_boolean("bilstm", False,
                      "Whether or not to use bidirectional LSTMs")
 
-flags.DEFINE_integer("lstm_size", 10, "Dimension of LSTM layers.")
+flags.DEFINE_integer("lstm_size", 50, "Dimension of LSTM layers.")
 
 flags.DEFINE_float("lstm_dropout", 0.5, "LSTM regular dropout.")
 
@@ -104,9 +104,9 @@ flags.DEFINE_integer(
     "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs"
 )
 
-flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
+flags.DEFINE_float("clipnorm", 1.0, "Max norm size to clipt the gradients.")
 
-flags.DEFINE_float("init_scale", 0.05,
+flags.DEFINE_float("init_scale", 0.1,
                    "Range to initialize the weights of the model.")
 
 flags.DEFINE_integer(
@@ -138,12 +138,12 @@ print('Pre-processing data...')
 
 # train dataset
 
-train_files = ['data/GA/train.cupt']
-# train_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'train.cupt':
-#             train_files.append(os.path.join(root, file))
+# train_files = ['data/GA/train.cupt']
+train_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'train.cupt':
+            train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, per_word=True, feature=_FEATURE)
 
