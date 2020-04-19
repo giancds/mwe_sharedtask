@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.utils import class_weight
 
-from preprocess import extract_dataset, build_model_name
+from preprocess import extract_dataset, build_model_name, Features
 
 # #####
 # Hyper-parametsr definitions
@@ -27,6 +27,8 @@ n_labels = 2
 
 flags = tf.compat.v1.flags
 
+# TODO: select features in all scripts
+
 flags.DEFINE_integer("max_epochs", 1,
                      "Max number of epochs to train the models")
 
@@ -41,6 +43,9 @@ flags.DEFINE_boolean("log_tensorboard", False,
 
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
+
+flags.DEFINE_string("feature", 'upos',
+                    "Which feature to use when training de model.")
 
 flags.DEFINE_integer("embed_dim", 10, "Dimension of embbeddings.")
 
@@ -103,6 +108,18 @@ flags.DEFINE_integer(
 )
 FLAGS = flags.FLAGS
 
+
+# define which feature we can use to train de model
+_FEATURE = Features.upos
+
+if FLAGS.feature == 'xpos':
+    _FEATURE = Features.xpos
+
+elif FLAGS.feature == 'deprel':
+    _FEATURE = Features.deprel
+
+#
+#
 model_name = build_model_name('perword', FLAGS)
 
 print('\nModel name {}\n'.format(model_name))
@@ -116,12 +133,12 @@ print('Pre-processing data...')
 # train dataset
 
 
-train_files = ['data/GA/train.cupt']
-# train_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'train.cupt':
-#             train_files.append(os.path.join(root, file))
+# train_files = ['data/GA/train.cupt']
+train_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'train.cupt':
+            train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, per_word=True)
 
@@ -147,12 +164,12 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   random_state=42)
 
 # test dataset
-dev_files = ['data/GA/dev.cupt']
-# dev_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'dev.cupt':
-#             dev_files.append(os.path.join(root, file))
+# dev_files = ['data/GA/dev.cupt']
+dev_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'dev.cupt':
+            dev_files.append(os.path.join(root, file))
 
 dev_dataset = extract_dataset(dev_files, per_word=True)
 

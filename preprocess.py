@@ -1,4 +1,11 @@
 import pandas as pd
+from enum import Enum
+
+
+class Features(Enum):
+    upos = 3
+    xpos = 4
+    deprel = 7
 
 
 def process_cup(text):
@@ -39,11 +46,12 @@ def extract_dataset(files, per_word=False):
     data = []
     processing_func = _build_per_word_dataset if per_word else _build_dataset
     for file in files:
-        data += processing_func(open(file))
+        with open(file) as f:
+            data += processing_func(f)
     return data
 
 
-def _build_dataset(text):
+def _build_dataset(text, feature=Features.upos):
     examples = []
     flag = False
     example = ''
@@ -56,14 +64,14 @@ def _build_dataset(text):
 
         elif not line.startswith('#'):     # if it is not a line of metadata
             feats = line.split()
-            example += ' ' + feats[3]
+            example += ' ' + feats[feature.value]
             if feats[10] is not '*' and flag == False:
                 flag = True
 
     return examples
 
 
-def _build_per_word_dataset(text):
+def _build_per_word_dataset(text, feature=Features.upos):
     examples = []
     example = ''
     labels = []
@@ -75,7 +83,7 @@ def _build_per_word_dataset(text):
 
         elif not line.startswith('#'):     # if it is not a line of metadata
             feats = line.split()
-            example += ' ' + feats[3]
+            example += ' ' + feats[feature.value]
             label = 0 if feats[10] is '*' else 1
             labels.append(label)
 
@@ -83,32 +91,21 @@ def _build_per_word_dataset(text):
 
 
 def build_model_name(name, FLAGS):
-    name = ('{21}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}dropout.{6}-{7}-{8}lstm.'
-            '{9}lstmDrop.{10}lstmRecDrop.{11}-{12}.'
-            '{14}Loss.{15}batch.{16}.{17}lr.{18}-{19}decay.{20}norm.'
-            '{21}initScale.ckpt').format(
-                FLAGS.max_epochs,
-                FLAGS.early_stop_patience,
-                FLAGS.early_stop_delta,
-                FLAGS.embed_dim,
-                FLAGS.dropout,
-                'spatial-' if FLAGS.spatial_dropout else '',
-                FLAGS.n_layers,
-                FLAGS.lstm_size,
-                'bi-' if FLAGS.bilstm else '',
-                FLAGS.lstm_dropout,
-                FLAGS.lstm_recurrent_dropout,
-                FLAGS.output_size,
-                FLAGS.output_activation,
-                (str(FLAGS.output_threshold) + 'outThresh.') if FLAGS.output_size == 1 and  FLAGS.output_activation == 'sigmoid' else '',
-                FLAGS.loss_function,
-                FLAGS.batch_size,
-                FLAGS.optimizer,
-                FLAGS.learning_rate,
-                FLAGS.lr_decay,
-                FLAGS.start_decay,
-                FLAGS.clipnorm,
-                FLAGS.init_scale,
-                name
-                )
+    name = (
+        '{21}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}dropout.{6}-{7}-{8}lstm.'
+        '{9}lstmDrop.{10}lstmRecDrop.{11}-{12}.'
+        '{14}Loss.{15}batch.{16}.{17}lr.{18}-{19}decay.{20}norm.'
+        '{21}initScale.ckpt').format(
+            FLAGS.max_epochs, FLAGS.early_stop_patience, FLAGS.early_stop_delta,
+            FLAGS.embed_dim, FLAGS.dropout,
+            'spatial-' if FLAGS.spatial_dropout else '', FLAGS.n_layers,
+            FLAGS.lstm_size, 'bi-' if FLAGS.bilstm else '', FLAGS.lstm_dropout,
+            FLAGS.lstm_recurrent_dropout, FLAGS.output_size,
+            FLAGS.output_activation,
+            (str(FLAGS.output_threshold) +
+             'outThresh.') if FLAGS.output_size == 1 and
+            FLAGS.output_activation == 'sigmoid' else '', FLAGS.loss_function,
+            FLAGS.batch_size, FLAGS.optimizer, FLAGS.learning_rate,
+            FLAGS.lr_decay, FLAGS.start_decay, FLAGS.clipnorm, FLAGS.init_scale,
+            name)
     return name
