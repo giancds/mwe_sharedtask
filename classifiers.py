@@ -15,6 +15,7 @@ class BoostedClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
                  verbose=2,
                  validation_data=None,
                  output_size=2,
+                 class_weight=None,
                  **sk_params):
 
         self.build_fn = build_fn
@@ -22,9 +23,11 @@ class BoostedClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
         self.verbose = verbose
         self.validation_data = validation_data
         self.output_size = output_size
+        self.class_weight = class_weight
 
         sk_params['callbacks'] = callbacks
         sk_params['verbose'] = verbose
+        sk_params['class_weight'] = class_weight
         sk_params['validation_data'] = validation_data
 
         super(BoostedClassifier, self).__init__(build_fn, **sk_params)
@@ -35,7 +38,8 @@ class BoostedClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
             'build_fn': self.build_fn,
             'callbacks': self.callbacks,
             'verbose': self.verbose,
-            'validation_data': self.validation_data
+            'validation_data': self.validation_data,
+            'class_weight': self.class_weight,
         })
         return res
 
@@ -55,7 +59,7 @@ class BoostedClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
             kwargs['sample_weight'] = sample_weight
         if self.output_size > 1:
             y = tf.keras.utils.to_categorical(y)
-        return super(BoostedClassifier, self).fit(x, y, **kwargs)
+        return super(BoostedClassifier, self).fit(x, y, class_weight=self.class_weight, **kwargs)
 
 
 class BoostedTemporalClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):

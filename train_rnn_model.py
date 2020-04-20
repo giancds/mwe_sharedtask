@@ -132,6 +132,7 @@ upos = 18     # number of upos in the train dataset
 
 # train dataset
 
+# train_files = ['data/GA/train.cupt']
 train_files = []
 for root, dirs, files in os.walk('data/'):
     for file in files:
@@ -187,7 +188,7 @@ model = tf.keras.Sequential()
 # embedding
 model.add(
     tf.keras.layers.Embedding(
-        len(tokenizer.word_index),
+        len(tokenizer.word_index) + 1,
         FLAGS.embed_dim,
         input_length=max_len,
         mask_zero=True,

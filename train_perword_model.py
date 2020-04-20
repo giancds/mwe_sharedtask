@@ -199,7 +199,7 @@ model = tf.keras.Sequential()
 # embedding
 model.add(
     tf.keras.layers.Embedding(
-        len(tokenizer.word_index),
+        len(tokenizer.word_index) + 1,
         FLAGS.embed_dim,
         input_length=x_train.shape[1],
         # mask_zero=True,

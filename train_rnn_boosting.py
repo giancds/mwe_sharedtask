@@ -135,16 +135,14 @@ print('\nModel name {}\n'.format(model_name))
 
 print('Pre-processing data...')
 
-upos = 18     # number of upos in the train dataset
-
 # train dataset
 
-# train_files = ['data/GA/train.cupt']
-train_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'train.cupt':
-            train_files.append(os.path.join(root, file))
+train_files = ['data/GA/train.cupt']
+# train_files = []
+# for root, dirs, files in os.walk('data/'):
+#     for file in files:
+#         if file == 'train.cupt':
+#             train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, feature=_FEATURE)
 
@@ -214,7 +212,7 @@ def build_model():
     # embedding
     model.add(
         tf.keras.layers.Embedding(
-            len(tokenizer.word_index),
+            len(tokenizer.word_index) + 1,
             FLAGS.embed_dim,
             mask_zero=True,
             input_length=x_train.shape[1],
@@ -304,6 +302,7 @@ keras_model = BoostedClassifier(
     epochs=FLAGS.max_epochs,
     callbacks=callbacks,
     verbose=FLAGS.verbose,
+    # class_weight=class_weights,
     validation_data=(x_val, y_val))
 
 classifier = AdaBoostClassifier(base_estimator=keras_model,
