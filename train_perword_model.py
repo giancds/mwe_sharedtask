@@ -8,6 +8,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.utils import class_weight
 
 from preprocess import extract_dataset, build_model_name, Features
+from evaluation import evaluate
 
 from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
@@ -321,21 +322,4 @@ model.fit(x_train,
 # #####
 # Evaluation time
 #
-
-if FLAGS.output_size == 1:
-    _y_pred = model.predict(x_dev).astype('int')
-else:
-    _y_pred = model.predict(x_dev).argmax(axis=2)
-
-lens = [len(i) for i in dev_labels]
-y_pred = []
-y_true = []
-for i, l in enumerate(lens):
-    y_pred += _y_pred[i, 0:l].tolist()
-    y_true += y_dev[i, 0:l].tolist()
-
-print('Confusion matrix:')
-print(confusion_matrix(y_true, y_pred))
-
-print('\n\nReport')
-print(classification_report(y_true, y_pred))
+evaluate(model, (x_dev, y_dev), perword=True, seq_lens=[len(i) for i in dev_labels])

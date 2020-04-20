@@ -10,6 +10,7 @@ from sklearn.utils import class_weight
 
 from classifiers import BoostedClassifier
 from preprocess import extract_dataset, build_model_name, Features
+from evaluation import evaluate
 
 from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
@@ -107,14 +108,11 @@ flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 flags.DEFINE_float("init_scale", 0.05,
                    "Range to initialize the weights of the model.")
 
-flags.DEFINE_integer(
-    "verbose", 2, "Verbosity of training"
-)
+flags.DEFINE_integer("verbose", 2, "Verbosity of training")
 
 flags.DEFINE_string("feature", 'upos',
                     "Which feature to use when training de model.")
 FLAGS = flags.FLAGS
-
 
 # define which feature we can use to train de model
 _FEATURE = Features.upos
@@ -191,7 +189,6 @@ y_dev = np.array(dev_labels).reshape(-1, 1)
 
 print("Building model...")
 
-
 #
 # optimizers
 if str(FLAGS.optimizer).lower() == 'sgd':
@@ -243,14 +240,28 @@ def build_model():
         model.add(tf.keras.layers.Dropout(FLAGS.lstm_dropout))
 
     if FLAGS.output_size == 1:
-        model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
+        model.add(
+            tf.keras.layers.Dense(
+                1,
+                activation='sigmoid',
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-FLAGS.init_scale,
+                    maxval=FLAGS.init_scale,
+                    seed=SEED)))
     else:
-        model.add(tf.keras.layers.Dense(2, activation=FLAGS.output_activation))
+        model.add(
+            tf.keras.layers.Dense(
+                2,
+                activation=FLAGS.output_activation,
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-FLAGS.init_scale,
+                    maxval=FLAGS.init_scale,
+                    seed=SEED)))
 
     # compiling model
     model.compile(loss=FLAGS.loss_function,
-                optimizer=optimizer,
-                metrics=['accuracy'])
+                  optimizer=optimizer,
+                  metrics=['accuracy'])
 
     print(model.summary())
 
@@ -296,14 +307,13 @@ if FLAGS.weighted_loss:
 
 print('Class weights: {}'.format(class_weights))
 
-keras_model = BoostedClassifier(
-    build_fn=build_model,
-    batch_size=FLAGS.batch_size,
-    epochs=FLAGS.max_epochs,
-    callbacks=callbacks,
-    verbose=FLAGS.verbose,
-    class_weight=class_weights,
-    validation_data=(x_val, y_val))
+keras_model = BoostedClassifier(build_fn=build_model,
+                                batch_size=FLAGS.batch_size,
+                                epochs=FLAGS.max_epochs,
+                                callbacks=callbacks,
+                                verbose=FLAGS.verbose,
+                                class_weight=class_weights,
+                                validation_data=(x_val, y_val))
 
 classifier = AdaBoostClassifier(base_estimator=keras_model,
                                 n_estimators=FLAGS.n_estimators,
@@ -312,14 +322,7 @@ classifier = AdaBoostClassifier(base_estimator=keras_model,
 
 classifier.fit(x_train, y_train)
 
-
 # #####
 # Evaluation time
 #
-y_pred = classifier.predict(x_dev)
-
-print('Confusion matrix:')
-print(confusion_matrix(y_dev, y_pred))
-
-print('\n\nReport')
-print(classification_report(y_dev, y_pred))
+evaluate(classifier, (x_dev, y_dev), boosting=True)

@@ -4,10 +4,11 @@ import numpy as np
 import tensorflow as tf
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, classification_report, f1_score
+from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.utils import class_weight
 
 from preprocess import extract_dataset, build_model_name, Features
+from evaluation import evaluate
 
 from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
@@ -43,7 +44,11 @@ flags.DEFINE_boolean("log_tensorboard", False,
 flags.DEFINE_string("train_dir",
                     os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
 
-flags.DEFINE_integer("embed_dim", 100, "Dimension of embbeddings.")
+flags.DEFINE_integer("embed_dim", 20, "Dimension of embbeddings.")
+
+flags.DEFINE_list("filters", [128], "Dimension of embbeddings.")
+
+flags.DEFINE_integer("ngram", 3, "Dimension of embbeddings.")
 
 flags.DEFINE_boolean("spatial_dropout", False,
                      "Whether or  to use spatial dropout for Embbeddings.")
@@ -99,14 +104,11 @@ flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 flags.DEFINE_float("init_scale", 0.05,
                    "Range to initialize the weights of the model.")
 
-flags.DEFINE_integer(
-    "verbose", 2, "Verbosity of training"
-)
+flags.DEFINE_integer("verbose", 1, "Verbosity of training")
 
 flags.DEFINE_string("feature", 'upos+xpos+deprel',
                     "Which feature to use when training de model.")
 FLAGS = flags.FLAGS
-
 
 # define which feature we can use to train de model
 
@@ -119,9 +121,6 @@ print('\nModel name {}\n'.format(model_name))
 #
 
 print('Pre-processing data...')
-
-
-upos = 18     # number of upos in the train dataset
 
 # train dataset
 
@@ -138,12 +137,8 @@ for f in tmp:
     if f == 'upos':
         features.append(Features.upos)
 
-    elif f == 'xpos':
-        features.append(Features.xpos)
-
     elif f == 'deprel':
         features.append(Features.deprel)
-
 
 train_dataset = [[]]
 for i, feature in enumerate(features):
@@ -162,18 +157,20 @@ for dataset in train_dataset[0]:
     tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ', filters='')
     tokenizer.fit_on_texts(dataset)
     _x_train = tokenizer.texts_to_sequences(dataset)
-    _x_train = tf.keras.preprocessing.sequence.pad_sequences(_x_train) # pad to the longest sequence length
+    _x_train = tf.keras.preprocessing.sequence.pad_sequences(
+        _x_train)     # pad to the longest sequence length
     tokenizers.append(tokenizer)
     x_train.append(np.expand_dims(np.array(_x_train), axis=2))
 
+x_train = np.concatenate(x_train, axis=2)
 
+max_len = x_train.shape[1]
 
 y_train = np.array(train_labels).reshape(-1, 1)
 x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   y_train,
                                                   test_size=0.15,
                                                   random_state=SEED)
-
 
 # validation/dev dataset
 
@@ -183,18 +180,23 @@ for root, dirs, files in os.walk('data/'):
         if file == 'dev.cupt':
             dev_files.append(os.path.join(root, file))
 
-# dev_datasets = []
-# for i in range(len())
-# dev_dataset = extract_dataset(dev_files, feature=_FEATURE)
+dev_dataset = [[]]
+for i, feature in enumerate(features):
+    tmp = extract_dataset(train_files, feature=feature)
+    if i == 0:
+        dev_sents = [d[0] for d in tmp]
+        dev_labels = [d[1] for d in tmp]
+    else:
+        dev_sents = [d[0] for d in tmp]
 
-dev_sents = [d[0] for d in dev_dataset]
-dev_labels = [d[1] for d in dev_dataset]
+x_dev = []
+for i, dataset in enumerate(dev_dataset):
+    _x_dev = tokenizer.texts_to_sequences(dataset)
+    _x_dev = tf.keras.preprocessing.sequence.pad_sequences(_x_dev,
+                                                           maxlen=max_len)
+    x_dev.append(np.expand_dims(np.array(_x_dev), axis=2))
 
-x_dev = tokenizer.texts_to_sequences(dev_sents)
-x_dev = tf.keras.preprocessing.sequence.pad_sequences(
-    x_dev,
-    maxlen=max_len)     # pad to the longest train sequence length
-
+x_dev = np.concatenate(x_dev, axis=2)
 y_dev = np.array(dev_labels).reshape(-1, 1)
 
 # #####
@@ -207,51 +209,60 @@ model = tf.keras.Sequential()
 # embedding
 model.add(
     tf.keras.layers.Embedding(
-        len(tokenizer.word_index) + 1,
+        max([len(t.word_index) for t in tokenizers]) + 1,
         FLAGS.embed_dim,
+        input_shape=(x_train.shape[1], x_train.shape[2]),
         input_length=max_len,
         mask_zero=True,
         embeddings_initializer=tf.random_uniform_initializer(
             minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED)))
+
+shape = model.layers[0].output_shape
+
+model.add(tf.keras.layers.Reshape((shape[1], shape[3], shape[2])))
+
 if FLAGS.spatial_dropout:
     model.add(tf.keras.layers.SpatialDropout1D(FLAGS.dropout))
 else:
     model.add(tf.keras.layers.Dropout(FLAGS.dropout))
 
+for filters in FLAGS.filters:
+    model.add(
+        tf.keras.layers.Conv2D(
+            filters,
+            FLAGS.ngram,
+            padding='valid',
+            activation='relu',
+        #    strides=1,
+            kernel_initializer=tf.random_uniform_initializer(
+                minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED)))
 
+    model.add(tf.keras.layers.GlobalMaxPool2D())
 
-model.add(tf.keras.layers.Conv1D(
-    FLAGS.filters,
-    FLAGS.n_gram,
-    padding='valid',
-    activation='relu',
-    strides=1,
-    kernel_initializer=tf.random_uniform_initializer(
-        minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED)))
-
-# LSTMs
-for layer in range(FLAGS.n_layers):
-    return_sequences = False if layer == FLAGS.n_layers - 1 else True
-    layer = tf.keras.layers.LSTM(
-        FLAGS.lstm_size,
-     #  dropout=FLAGS.lstm_dropout,
-        recurrent_dropout=FLAGS.lstm_recurrent_dropout,
-        return_sequences=return_sequences,
-        kernel_initializer=tf.random_uniform_initializer(
-            minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED),
-        recurrent_initializer=tf.random_uniform_initializer(
-            minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED),
-    )
-    # if bidirectional
-    if FLAGS.bilstm:
-        layer = tf.keras.layers.Bidirectional(layer)
-    model.add(layer)
-    model.add(tf.keras.layers.Dropout(FLAGS.lstm_dropout))
+model.add(
+    tf.keras.layers.Dense(FLAGS.lstm_size,
+                          activation='relu',
+                          kernel_initializer=tf.random_uniform_initializer(
+                              minval=-FLAGS.init_scale,
+                              maxval=FLAGS.init_scale,
+                              seed=SEED)))
 
 if FLAGS.output_size == 1:
-    model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
+    model.add(
+        tf.keras.layers.Dense(1,
+                              activation='sigmoid',
+                              kernel_initializer=tf.random_uniform_initializer(
+                                  minval=-FLAGS.init_scale,
+                                  maxval=FLAGS.init_scale,
+                                  seed=SEED)))
 else:
-    model.add(tf.keras.layers.Dense(2, activation=FLAGS.output_activation))
+    model.add(
+        tf.keras.layers.Dense(2,
+                              activation=FLAGS.output_activation,
+                              kernel_initializer=tf.random_uniform_initializer(
+                                  minval=-FLAGS.init_scale,
+                                  maxval=FLAGS.init_scale,
+                                  seed=SEED)))
     y_train = tf.keras.utils.to_categorical(y_train)
     y_val = tf.keras.utils.to_categorical(y_val)
 
@@ -275,6 +286,7 @@ model.compile(loss=FLAGS.loss_function,
               metrics=['accuracy'])
 
 print(model.summary())
+
 checkpoint = tf.keras.callbacks.ModelCheckpoint(FLAGS.train_dir + model_name,
                                                 save_best_only=True)
 callbacks = [checkpoint]
@@ -301,7 +313,6 @@ if FLAGS.start_decay > 0:
     lrate = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
     callbacks.append(lrate)
 
-
 # calculate class weights for the imbalanced case
 class_weights = None
 if FLAGS.weighted_loss:
@@ -327,13 +338,4 @@ model.fit(x_train,
 # #####
 # Evaluation time
 #
-if FLAGS.output_size == 1:
-    y_pred = model.predict(x_dev).astype('int')
-else:
-    y_pred = model.predict(x_dev).argmax(axis=1)
-
-print('Confusion matrix:')
-print(confusion_matrix(y_dev, y_pred))
-
-print('\n\nReport')
-print(classification_report(y_dev, y_pred))
+evaluate(model, test_data=(x_dev, y_dev))

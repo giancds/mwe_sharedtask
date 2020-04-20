@@ -329,18 +329,4 @@ classifier.fit(x_train.flatten(), y_train.flatten())
 # #####
 # Evaluation time
 #
-
-_y_pred = classifier.predict(x_dev)
-
-lens = [len(i) for i in dev_labels]
-y_pred = []
-y_true = []
-for i, l in enumerate(lens):
-    y_pred += _y_pred[i, 0:l].tolist()
-    y_true += y_dev[i, 0:l].tolist()
-
-print('Confusion matrix:')
-print(confusion_matrix(y_true, y_pred))
-
-print('\n\nReport')
-print(classification_report(y_true, y_pred))
+evaluate(classifier, (x_dev, y_dev), perword=True, boosting=True, seq_lens=[len(i) for i in dev_labels])

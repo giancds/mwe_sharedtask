@@ -8,6 +8,7 @@ from sklearn.metrics import confusion_matrix, classification_report, f1_score
 from sklearn.utils import class_weight
 
 from preprocess import extract_dataset, build_model_name, Features
+from evaluation import evaluate
 
 from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
@@ -99,14 +100,11 @@ flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
 flags.DEFINE_float("init_scale", 0.05,
                    "Range to initialize the weights of the model.")
 
-flags.DEFINE_integer(
-    "verbose", 2, "Verbosity of training"
-)
+flags.DEFINE_integer("verbose", 2, "Verbosity of training")
 
 flags.DEFINE_string("feature", 'deprel',
                     "Which feature to use when training de model.")
 FLAGS = flags.FLAGS
-
 
 # define which feature we can use to train de model
 _FEATURE = Features.upos
@@ -126,7 +124,6 @@ print('\nModel name {}\n'.format(model_name))
 #
 
 print('Pre-processing data...')
-
 
 upos = 18     # number of upos in the train dataset
 
@@ -157,7 +154,6 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   test_size=0.15,
                                                   random_state=SEED)
 
-
 # validation/dev dataset
 
 dev_files = []
@@ -173,8 +169,7 @@ dev_labels = [d[1] for d in dev_dataset]
 
 x_dev = tokenizer.texts_to_sequences(dev_sents)
 x_dev = tf.keras.preprocessing.sequence.pad_sequences(
-    x_dev,
-    maxlen=max_len)     # pad to the longest train sequence length
+    x_dev, maxlen=max_len)     # pad to the longest train sequence length
 
 y_dev = np.array(dev_labels).reshape(-1, 1)
 
@@ -219,9 +214,21 @@ for layer in range(FLAGS.n_layers):
     model.add(tf.keras.layers.Dropout(FLAGS.lstm_dropout))
 
 if FLAGS.output_size == 1:
-    model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
+    model.add(
+        tf.keras.layers.Dense(1,
+                              activation='sigmoid',
+                              kernel_initializer=tf.random_uniform_initializer(
+                                  minval=-FLAGS.init_scale,
+                                  maxval=FLAGS.init_scale,
+                                  seed=SEED)))
 else:
-    model.add(tf.keras.layers.Dense(2, activation=FLAGS.output_activation))
+    model.add(
+        tf.keras.layers.Dense(2,
+                              activation=FLAGS.output_activation,
+                              kernel_initializer=tf.random_uniform_initializer(
+                                  minval=-FLAGS.init_scale,
+                                  maxval=FLAGS.init_scale,
+                                  seed=SEED)))
     y_train = tf.keras.utils.to_categorical(y_train)
     y_val = tf.keras.utils.to_categorical(y_val)
 
@@ -271,7 +278,6 @@ if FLAGS.start_decay > 0:
     lrate = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
     callbacks.append(lrate)
 
-
 # calculate class weights for the imbalanced case
 class_weights = None
 if FLAGS.weighted_loss:
@@ -297,13 +303,4 @@ model.fit(x_train,
 # #####
 # Evaluation time
 #
-if FLAGS.output_size == 1:
-    y_pred = model.predict(x_dev).astype('int')
-else:
-    y_pred = model.predict(x_dev).argmax(axis=1)
-
-print('Confusion matrix:')
-print(confusion_matrix(y_dev, y_pred))
-
-print('\n\nReport')
-print(classification_report(y_dev, y_pred))
+evaluate(model, test_data=(x_dev, y_dev))
