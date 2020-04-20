@@ -103,19 +103,12 @@ flags.DEFINE_integer(
     "verbose", 2, "Verbosity of training"
 )
 
-flags.DEFINE_string("feature", 'deprel',
+flags.DEFINE_string("feature", 'upos+xpos+deprel',
                     "Which feature to use when training de model.")
 FLAGS = flags.FLAGS
 
 
 # define which feature we can use to train de model
-_FEATURE = Features.upos
-
-if FLAGS.feature == 'xpos':
-    _FEATURE = Features.xpos
-
-elif FLAGS.feature == 'deprel':
-    _FEATURE = Features.deprel
 
 model_name = build_model_name('sentlevel', FLAGS)
 
@@ -139,17 +132,41 @@ for root, dirs, files in os.walk('data/'):
         if file == 'train.cupt':
             train_files.append(os.path.join(root, file))
 
-train_dataset = extract_dataset(train_files, feature=_FEATURE)
+tmp = FLAGS.feature.split('+')
+features = []
+for f in tmp:
+    if f == 'upos':
+        features.append(Features.upos)
 
-train_sents = [d[0] for d in train_dataset]
-train_labels = [d[1] for d in train_dataset]
-tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ', filters='')
-tokenizer.fit_on_texts(train_sents)
-x_train = tokenizer.texts_to_sequences(train_sents)
-x_train = tf.keras.preprocessing.sequence.pad_sequences(
-    x_train)     # pad to the longest sequence length
+    elif f == 'xpos':
+        features.append(Features.xpos)
 
-max_len = x_train.shape[1]
+    elif f == 'deprel':
+        features.append(Features.deprel)
+
+
+train_dataset = [[]]
+for i, feature in enumerate(features):
+    tmp = extract_dataset(train_files, feature=feature)
+    if i == 0:
+        train_sents = [d[0] for d in tmp]
+        train_labels = [d[1] for d in tmp]
+        train_dataset.append(train_labels)
+    else:
+        train_sents = [d[0] for d in tmp]
+    train_dataset[0].append(train_sents)
+
+tokenizers = []
+x_train = []
+for dataset in train_dataset[0]:
+    tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ', filters='')
+    tokenizer.fit_on_texts(dataset)
+    _x_train = tokenizer.texts_to_sequences(dataset)
+    _x_train = tf.keras.preprocessing.sequence.pad_sequences(_x_train) # pad to the longest sequence length
+    tokenizers.append(tokenizer)
+    x_train.append(np.expand_dims(np.array(_x_train), axis=2))
+
+
 
 y_train = np.array(train_labels).reshape(-1, 1)
 x_train, x_val, y_train, y_val = train_test_split(x_train,
@@ -166,7 +183,9 @@ for root, dirs, files in os.walk('data/'):
         if file == 'dev.cupt':
             dev_files.append(os.path.join(root, file))
 
-dev_dataset = extract_dataset(dev_files, feature=_FEATURE)
+# dev_datasets = []
+# for i in range(len())
+# dev_dataset = extract_dataset(dev_files, feature=_FEATURE)
 
 dev_sents = [d[0] for d in dev_dataset]
 dev_labels = [d[1] for d in dev_dataset]
@@ -198,6 +217,17 @@ if FLAGS.spatial_dropout:
     model.add(tf.keras.layers.SpatialDropout1D(FLAGS.dropout))
 else:
     model.add(tf.keras.layers.Dropout(FLAGS.dropout))
+
+
+
+model.add(tf.keras.layers.Conv1D(
+    FLAGS.filters,
+    FLAGS.n_gram,
+    padding='valid',
+    activation='relu',
+    strides=1,
+    kernel_initializer=tf.random_uniform_initializer(
+        minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED)))
 
 # LSTMs
 for layer in range(FLAGS.n_layers):

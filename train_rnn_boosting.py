@@ -148,7 +148,7 @@ train_dataset = extract_dataset(train_files, feature=_FEATURE)
 
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
-tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ')
+tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ', filters='')
 tokenizer.fit_on_texts(train_sents)
 x_train = tokenizer.texts_to_sequences(train_sents)
 x_train = tf.keras.preprocessing.sequence.pad_sequences(

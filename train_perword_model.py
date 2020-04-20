@@ -80,7 +80,7 @@ flags.DEFINE_float(
 flags.DEFINE_string("loss_function", 'binary_crossentropy',
                     "Loss function to use during training.")
 
-flags.DEFINE_boolean("weighted_loss", True,
+flags.DEFINE_boolean("weighted_loss", False,
                      "Whether or to use weighted loss for learning.")
 
 flags.DEFINE_integer("batch_size", 24, "Size of batches.")
@@ -148,7 +148,7 @@ train_dataset = extract_dataset(train_files, per_word=True, feature=_FEATURE)
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
 
-tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ')
+tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ', filters='')
 
 tokenizer.fit_on_texts(train_sents)
 x_train = tokenizer.texts_to_sequences(train_sents)
@@ -299,7 +299,6 @@ if FLAGS.start_decay > 0:
 # calculate class weights for the imbalanced case
 class_weights = None
 if FLAGS.weighted_loss:
-    # class_weights = class_weight.compute_class_weight('balanced', np.unique(y_train.flatten()), y_train.flatten())
     weights = class_weight.compute_class_weight(
         'balanced', np.array([0, 1]),
         np.array([i for j in train_labels for i in j]))

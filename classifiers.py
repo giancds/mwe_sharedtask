@@ -85,12 +85,12 @@ class BoostedTemporalClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
         self.classes_ = np.unique(
             [i for i in validation_data[1].flatten() if i >= 0])
 
-        print('\n\nClasses {}\n\n'.format(self.classes_))
+        # print('\n\nClasses {}\n\n'.format(self.classes_))
 
 
         self.n_classes_ = len(self.classes_)
 
-        print('\n\nN Classes {}\n\n'.format(self.n_classes_))
+        # print('\n\nN Classes {}\n\n'.format(self.n_classes_))
 
         super(BoostedTemporalClassifier, self).__init__(build_fn, **sk_params)
 
@@ -134,7 +134,6 @@ class BoostedTemporalClassifier(tf.keras.wrappers.scikit_learn.KerasClassifier):
         fit_args = copy.deepcopy(self.filter_sk_params(tf.keras.Sequential.fit))
         fit_args.update(kwargs)
 
-        print('\n\nx shape {0}\n\n'.format(x.shape))
         history = self.model.fit(x, y, **fit_args)
 
         return history

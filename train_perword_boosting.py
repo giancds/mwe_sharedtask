@@ -86,7 +86,7 @@ flags.DEFINE_float(
 flags.DEFINE_string("loss_function", 'binary_crossentropy',
                     "Loss function to use during training.")
 
-flags.DEFINE_boolean("weighted_loss", True,
+flags.DEFINE_boolean("weighted_loss", False,
                      "Whether or to use weighted loss for learning.")
 
 flags.DEFINE_integer("batch_size", 24, "Size of batches.")
@@ -150,7 +150,7 @@ train_dataset = extract_dataset(train_files, per_word=True, feature=_FEATURE)
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
 
-tokenizer_sents = tf.keras.preprocessing.text.Tokenizer(split=' ')     # +1 to account for padding later
+tokenizer_sents = tf.keras.preprocessing.text.Tokenizer(split=' ', filters='')     # +1 to account for padding later
 
 tokenizer_sents.fit_on_texts(train_sents)
 x_train = tokenizer_sents.texts_to_sequences(train_sents)
