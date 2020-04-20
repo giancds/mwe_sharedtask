@@ -191,7 +191,7 @@ model.fit([x_train, y_train[:, 0:-1]], np_utils.to_categorical((y_train[:, 1:]))
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
-          validation_data=([x_val, y_val[:, 0:-1]], np_utils.to_categorical((y_val[:, 1:])))
+          validation_data=([x_val, y_val[:, 0:-1]], np_utils.to_categorical(y_val[:, 1:])))
 
 # #####
 # Evaluation time

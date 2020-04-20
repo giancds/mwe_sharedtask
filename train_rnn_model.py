@@ -103,7 +103,7 @@ flags.DEFINE_integer(
     "verbose", 2, "Verbosity of training"
 )
 
-flags.DEFINE_string("feature", 'upos',
+flags.DEFINE_string("feature", 'deprel',
                     "Which feature to use when training de model.")
 FLAGS = flags.FLAGS
 
@@ -142,18 +142,20 @@ train_dataset = extract_dataset(train_files, feature=_FEATURE)
 
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
-tokenizer = tf.keras.preprocessing.text.Tokenizer(
-    num_words=upos + 1, split=' ')     # +1 to account for padding later
+tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ')
 tokenizer.fit_on_texts(train_sents)
 x_train = tokenizer.texts_to_sequences(train_sents)
 x_train = tf.keras.preprocessing.sequence.pad_sequences(
     x_train)     # pad to the longest sequence length
+
+max_len = x_train.shape[1]
 
 y_train = np.array(train_labels).reshape(-1, 1)
 x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   y_train,
                                                   test_size=0.15,
                                                   random_state=SEED)
+
 
 # validation/dev dataset
 
@@ -171,7 +173,7 @@ dev_labels = [d[1] for d in dev_dataset]
 x_dev = tokenizer.texts_to_sequences(dev_sents)
 x_dev = tf.keras.preprocessing.sequence.pad_sequences(
     x_dev,
-    maxlen=x_train.shape[1])     # pad to the longest train sequence length
+    maxlen=max_len)     # pad to the longest train sequence length
 
 y_dev = np.array(dev_labels).reshape(-1, 1)
 
@@ -185,9 +187,9 @@ model = tf.keras.Sequential()
 # embedding
 model.add(
     tf.keras.layers.Embedding(
-        upos,
+        len(tokenizer.word_index),
         FLAGS.embed_dim,
-        input_length=x_train.shape[1],
+        input_length=max_len,
         mask_zero=True,
         embeddings_initializer=tf.random_uniform_initializer(
             minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED)))

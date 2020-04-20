@@ -150,8 +150,7 @@ train_dataset = extract_dataset(train_files, feature=_FEATURE)
 
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
-tokenizer = tf.keras.preprocessing.text.Tokenizer(
-    num_words=upos + 1, split=' ')     # +1 to account for padding later
+tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ')
 tokenizer.fit_on_texts(train_sents)
 x_train = tokenizer.texts_to_sequences(train_sents)
 x_train = tf.keras.preprocessing.sequence.pad_sequences(
@@ -215,7 +214,7 @@ def build_model():
     # embedding
     model.add(
         tf.keras.layers.Embedding(
-            upos,
+            len(tokenizer_sents.word_index),
             FLAGS.embed_dim,
             mask_zero=True,
             input_length=x_train.shape[1],

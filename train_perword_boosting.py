@@ -150,11 +150,10 @@ train_dataset = extract_dataset(train_files, per_word=True, feature=_FEATURE)
 train_sents = [d[0] for d in train_dataset]
 train_labels = [d[1] for d in train_dataset]
 
-tokenizer_pos = tf.keras.preprocessing.text.Tokenizer(
-    num_words=upos + 1, split=' ')     # +1 to account for padding later
+tokenizer_sents = tf.keras.preprocessing.text.Tokenizer(split=' ')     # +1 to account for padding later
 
-tokenizer_pos.fit_on_texts(train_sents)
-x_train = tokenizer_pos.texts_to_sequences(train_sents)
+tokenizer_sents.fit_on_texts(train_sents)
+x_train = tokenizer_sents.texts_to_sequences(train_sents)
 x_train = tf.keras.preprocessing.sequence.pad_sequences(
     x_train, value=0.0, padding='post')     # pad to the longest sequence length
 
@@ -184,7 +183,7 @@ dev_dataset = extract_dataset(dev_files, per_word=True, feature=_FEATURE)
 dev_sents = [d[0] for d in dev_dataset]
 dev_labels = [d[1] for d in dev_dataset]
 
-x_dev = tokenizer_pos.texts_to_sequences(dev_sents)
+x_dev = tokenizer_sents.texts_to_sequences(dev_sents)
 x_dev = tf.keras.preprocessing.sequence.pad_sequences(x_dev,
                                                       maxlen=x_train.shape[1],
                                                       value=0.0,
@@ -220,7 +219,7 @@ def build_model():
     # embedding
     model.add(
         tf.keras.layers.Embedding(
-            upos,
+            len(tokenizer_sents.word_index),
             FLAGS.embed_dim,
             input_length=x_train.shape[1],
             mask_zero=True,
