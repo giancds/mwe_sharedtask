@@ -214,7 +214,7 @@ def build_model():
     # embedding
     model.add(
         tf.keras.layers.Embedding(
-            len(tokenizer_sents.word_index),
+            len(tokenizer.word_index),
             FLAGS.embed_dim,
             mask_zero=True,
             input_length=x_train.shape[1],
