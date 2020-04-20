@@ -84,7 +84,7 @@ flags.DEFINE_float(
 flags.DEFINE_string("loss_function", 'binary_crossentropy',
                     "Loss function to use during training.")
 
-flags.DEFINE_boolean("weighted_loss", True,
+flags.DEFINE_boolean("weighted_loss", False,
                      "Whether or to use weighted loss for learning.")
 
 flags.DEFINE_integer("batch_size", 32, "Size of batches.")
@@ -137,12 +137,12 @@ print('Pre-processing data...')
 
 # train dataset
 
-train_files = ['data/GA/train.cupt']
-# train_files = []
-# for root, dirs, files in os.walk('data/'):
-#     for file in files:
-#         if file == 'train.cupt':
-#             train_files.append(os.path.join(root, file))
+# train_files = ['data/GA/train.cupt']
+train_files = []
+for root, dirs, files in os.walk('data/'):
+    for file in files:
+        if file == 'train.cupt':
+            train_files.append(os.path.join(root, file))
 
 train_dataset = extract_dataset(train_files, feature=_FEATURE)
 
@@ -302,7 +302,7 @@ keras_model = BoostedClassifier(
     epochs=FLAGS.max_epochs,
     callbacks=callbacks,
     verbose=FLAGS.verbose,
-    # class_weight=class_weights,
+    class_weight=class_weights,
     validation_data=(x_val, y_val))
 
 classifier = AdaBoostClassifier(base_estimator=keras_model,
