@@ -312,7 +312,7 @@ print('Class weights: {}'.format(class_weights))
 print('Train...')
 model.fit(x_train,
           y_train,
-          class_weight=class_weight,
+          class_weight=class_weights,
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
           callbacks=callbacks,
