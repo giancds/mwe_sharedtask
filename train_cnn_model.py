@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.utils import class_weight
 
-from preprocess import extract_dataset, Features
+from preprocess import extract_dataset, Features, load_dataset, pre_process_data
 from evaluation import evaluate
 from utils import get_callbacks, get_optimizer, get_class_weights
 from utils import define_cnn_flags, build_model_name
@@ -33,23 +33,12 @@ FLAGS = define_cnn_flags(tf.compat.v1.flags, BASE_DIR, TRAIN_DIR)
 
 model_name = build_model_name('sentlevel', FLAGS)
 
-print('\nModel name {}\n'.format(model_name))
 
 # #####
 # Loading data
 #
 
 print('Pre-processing data...')
-
-# train dataset
-
-# train_files = ['data/GA/train.cupt']
-train_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'train.cupt':
-            train_files.append(os.path.join(root, file))
-
 tmp = FLAGS.feature.split('+')
 features = []
 for f in tmp:
@@ -59,64 +48,20 @@ for f in tmp:
     elif f == 'deprel':
         features.append(Features.deprel)
 
-train_dataset = [[]]
-for i, feature in enumerate(features):
-    tmp = extract_dataset(train_files, feature=feature)
-    if i == 0:
-        train_sents = [d[0] for d in tmp]
-        train_labels = [d[1] for d in tmp]
-        train_dataset.append(train_labels)
-    else:
-        train_sents = [d[0] for d in tmp]
-    train_dataset[0].append(train_sents)
-
-tokenizers = []
-x_train = []
-for dataset in train_dataset[0]:
-    tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ', filters='')
-    tokenizer.fit_on_texts(dataset)
-    _x_train = tokenizer.texts_to_sequences(dataset)
-    _x_train = tf.keras.preprocessing.sequence.pad_sequences(
-        _x_train)     # pad to the longest sequence length
-    tokenizers.append(tokenizer)
-    x_train.append(np.expand_dims(np.array(_x_train), axis=2))
-
-x_train = np.concatenate(x_train, axis=2)
-
-max_len = x_train.shape[1]
-
-y_train = np.array(train_labels).reshape(-1, 1)
-x_train, x_val, y_train, y_val = train_test_split(x_train,
-                                                  y_train,
-                                                  test_size=0.15,
-                                                  random_state=SEED)
+# train_files = ['data/GA/train.cupt']
+train_files = []
+train_sents, train_labels = load_dataset(train_files, features, cnn=True)
 
 # validation/dev dataset
-
+# dev_files = ['data/GA/dev.cupt']
 dev_files = []
-for root, dirs, files in os.walk('data/'):
-    for file in files:
-        if file == 'dev.cupt':
-            dev_files.append(os.path.join(root, file))
+dev_sents, dev_labels = load_dataset(dev_files, features, cnn=True)
 
-dev_dataset = [[]]
-for i, feature in enumerate(features):
-    tmp = extract_dataset(train_files, feature=feature)
-    if i == 0:
-        dev_sents = [d[0] for d in tmp]
-        dev_labels = [d[1] for d in tmp]
-    else:
-        dev_sents = [d[0] for d in tmp]
+train_data, dev_data, (max_len, n_tokens) = pre_process_data(
+    (train_sents, train_labels), (dev_sents, dev_labels), seed=SEED, cnn=True)
 
-x_dev = []
-for i, dataset in enumerate(dev_dataset):
-    _x_dev = tokenizer.texts_to_sequences(dataset)
-    _x_dev = tf.keras.preprocessing.sequence.pad_sequences(_x_dev,
-                                                           maxlen=max_len)
-    x_dev.append(np.expand_dims(np.array(_x_dev), axis=2))
-
-x_dev = np.concatenate(x_dev, axis=2)
-y_dev = np.array(dev_labels).reshape(-1, 1)
+x_train, x_val, y_train, y_val = train_data
+x_dev, y_dev = dev_data
 
 # #####
 # Building and training the model
@@ -128,7 +73,7 @@ model = tf.keras.Sequential()
 # embedding
 model.add(
     tf.keras.layers.Embedding(
-        max([len(t.word_index) for t in tokenizers]) + 1,
+        n_tokens + 1,
         FLAGS.embed_dim,
         input_shape=(x_train.shape[1], x_train.shape[2]),
         input_length=max_len,

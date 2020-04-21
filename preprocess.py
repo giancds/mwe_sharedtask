@@ -96,7 +96,38 @@ def _build_per_word_dataset(text, feature=Features.upos):
     return examples
 
 
-def load_dataset(train_files, feature, per_word=False):
+def load_dataset(train_files, feature, per_word=False, cnn=False):
+
+    if cnn:
+        return _load_dataset_for_cnn(train_files, feature, per_word)
+
+    else:
+        return _load_dataset_for_rnn(train_files, feature, per_word)
+
+
+def _load_dataset_for_cnn(train_files, features, per_word=False):
+
+    if len(train_files) == 0:
+        _train_files = []
+        for root, _, files in os.walk('data/'):
+            for file in files:
+                if file == 'train.cupt':
+                    _train_files.append(os.path.join(root, file))
+    else:
+        _train_files = train_files
+
+    train_sents, train_labels = [], []
+    for i, feature in enumerate(features):
+        tmp = extract_dataset(_train_files, per_word=per_word, feature=feature)
+        if i == 0:
+            train_labels = [d[1] for d in tmp]
+        _train_sents = [d[0] for d in tmp]
+        train_sents.append(_train_sents)
+
+    return train_sents, train_labels
+
+
+def _load_dataset_for_rnn(train_files, feature, per_word=False):
 
     if len(train_files) == 0:
         _train_files = []
@@ -121,7 +152,79 @@ def pre_process_data(train_data,
                      dev_data,
                      test_size=0.15,
                      seed=None,
-                     pad_targets=False):
+                     pad_targets=False,
+                     cnn=False):
+    if cnn:
+        return _pre_process_for_cnn(train_data, dev_data, test_size, seed,
+                                    pad_targets)
+    else:
+        return _pre_process_for_rnn(train_data, dev_data, test_size, seed,
+                                    pad_targets)
+
+
+def _pre_process_for_cnn(train_data,
+                         dev_data,
+                         test_size=0.15,
+                         seed=None,
+                         pad_targets=False):
+    train_sents, train_labels = train_data
+    dev_sents, dev_labels = dev_data
+
+    tokenizers = []
+    x_train = []
+    for dataset in train_sents:
+        tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ', filters='')
+        tokenizer.fit_on_texts(dataset)
+        _x_train = tokenizer.texts_to_sequences(dataset)
+        _x_train = tf.keras.preprocessing.sequence.pad_sequences(
+            _x_train)     # pad to the longest sequence length
+        tokenizers.append(tokenizer)
+        x_train.append(np.expand_dims(np.array(_x_train), axis=2))
+
+    x_train = np.concatenate(x_train, axis=2)
+
+    max_len = x_train.shape[1]
+
+    if pad_targets:
+        y_train = tf.keras.preprocessing.sequence.pad_sequences(train_labels,
+                                                                maxlen=max_len,
+                                                                value=-1.0,
+                                                                padding='post')
+        y_dev = tf.keras.preprocessing.sequence.pad_sequences(dev_labels,
+                                                              maxlen=max_len,
+                                                              value=-1.0,
+                                                              padding='post')
+
+    else:
+        y_train = np.array(train_labels).reshape(-1, 1)
+        y_dev = np.array(dev_labels).reshape(-1, 1)
+
+    y_train = np.array(train_labels).reshape(-1, 1)
+    x_train, x_val, y_train, y_val = train_test_split(x_train,
+                                                      y_train,
+                                                      test_size=0.15,
+                                                      random_state=seed)
+
+    x_dev = []
+    for i, dataset in enumerate(dev_sents):
+        _x_dev = tokenizer.texts_to_sequences(dataset)
+        _x_dev = tf.keras.preprocessing.sequence.pad_sequences(_x_dev,
+                                                               maxlen=max_len)
+        x_dev.append(np.expand_dims(np.array(_x_dev), axis=2))
+
+    x_dev = np.concatenate(x_dev, axis=2)
+
+    return (x_train, x_val, y_train,
+            y_val), (x_dev,
+                     y_dev), (max_len,
+                              max([len(t.word_index) for t in tokenizers]))
+
+
+def _pre_process_for_rnn(train_data,
+                         dev_data,
+                         test_size=0.15,
+                         seed=None,
+                         pad_targets=False):
     train_sents, train_labels = train_data
     dev_sents, dev_labels = dev_data
 
