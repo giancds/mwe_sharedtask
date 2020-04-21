@@ -1,5 +1,11 @@
+import os
+
+import numpy as np
 import pandas as pd
+import tensorflow as tf
+
 from enum import Enum
+from sklearn.model_selection import train_test_split
 
 
 class Features(Enum):
@@ -90,22 +96,65 @@ def _build_per_word_dataset(text, feature=Features.upos):
     return examples
 
 
-def build_model_name(name, FLAGS):
-    name = (
-        '{21}_{22}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}dropout.{6}-{7}-{8}lstm.'
-        '{9}lstmDrop.{10}lstmRecDrop.{11}-{12}.'
-        '{14}Loss.{15}batch.{16}.{17}lr.{18}-{19}decay.{20}norm.'
-        '{21}initScale.ckpt').format(
-            FLAGS.max_epochs, FLAGS.early_stop_patience, FLAGS.early_stop_delta,
-            FLAGS.embed_dim, FLAGS.dropout,
-            'spatial-' if FLAGS.spatial_dropout else '', FLAGS.n_layers,
-            FLAGS.lstm_size, 'bi-' if FLAGS.bilstm else '', FLAGS.lstm_dropout,
-            FLAGS.lstm_recurrent_dropout, FLAGS.output_size,
-            FLAGS.output_activation,
-            (str(FLAGS.output_threshold) +
-             'outThresh.') if FLAGS.output_size == 1 and
-            FLAGS.output_activation == 'sigmoid' else '', FLAGS.loss_function,
-            FLAGS.batch_size, FLAGS.optimizer, FLAGS.learning_rate,
-            FLAGS.lr_decay, FLAGS.start_decay, FLAGS.clipnorm, FLAGS.init_scale,
-            name, FLAGS.feature)
-    return name
+def load_dataset(train_files, feature, per_word=False):
+
+    if len(train_files) == 0:
+        _train_files = []
+        for root, _, files in os.walk('data/'):
+            for file in files:
+                if file == 'train.cupt':
+                    _train_files.append(os.path.join(root, file))
+    else:
+        _train_files = train_files
+
+    train_dataset = extract_dataset(_train_files,
+                                    per_word=per_word,
+                                    feature=feature)
+
+    sents = [d[0] for d in train_dataset]
+    labels = [d[1] for d in train_dataset]
+
+    return sents, labels
+
+
+def pre_process_data(train_data,
+                     dev_data,
+                     test_size=0.15,
+                     seed=None,
+                     pad_targets=False):
+    train_sents, train_labels = train_data
+    dev_sents, dev_labels = dev_data
+
+    tokenizer = tf.keras.preprocessing.text.Tokenizer(split=' ', filters='')
+    tokenizer.fit_on_texts(train_sents)
+
+    x_train = tokenizer.texts_to_sequences(train_sents)
+    x_train = tf.keras.preprocessing.sequence.pad_sequences(
+        x_train)     # pad to the longest sequence length
+
+    max_len = x_train.shape[1]
+    if pad_targets:
+        y_train = tf.keras.preprocessing.sequence.pad_sequences(train_labels,
+                                                                maxlen=max_len,
+                                                                value=-1.0,
+                                                                padding='post')
+        y_dev = tf.keras.preprocessing.sequence.pad_sequences(dev_labels,
+                                                              maxlen=max_len,
+                                                              value=-1.0,
+                                                              padding='post')
+
+    else:
+        y_train = np.array(train_labels).reshape(-1, 1)
+        y_dev = np.array(dev_labels).reshape(-1, 1)
+
+    x_train, x_val, y_train, y_val = train_test_split(x_train,
+                                                      y_train,
+                                                      test_size=test_size,
+                                                      random_state=seed)
+
+    x_dev = tokenizer.texts_to_sequences(dev_sents)
+    x_dev = tf.keras.preprocessing.sequence.pad_sequences(
+        x_dev, maxlen=max_len)     # pad to the longest train sequence length
+
+    return (x_train, x_val, y_train,
+            y_val), (x_dev, y_dev), (max_len, len(tokenizer.word_index))

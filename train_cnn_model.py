@@ -7,8 +7,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.utils import class_weight
 
-from preprocess import extract_dataset, build_model_name, Features
+from preprocess import extract_dataset, Features
 from evaluation import evaluate
+from utils import get_callbacks, get_optimizer, get_class_weights
+from utils import define_cnn_flags, build_model_name
 
 from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
@@ -25,90 +27,7 @@ TRAIN_DIR = "train_mwe_classifier"
 # #####
 # Some hyperparameter definitions
 #
-verbose = 2
-upos = 18
-flags = tf.compat.v1.flags
-
-flags.DEFINE_integer("max_epochs", 100,
-                     "Max number of epochs to train the models")
-
-flags.DEFINE_integer("early_stop_patience", 10,
-                     "How many training steps to monitor. Set to 0 to ignore.")
-
-flags.DEFINE_float("early_stop_delta", 0.001,
-                   "How many training steps to monitor. Set to 0 to ignore.")
-
-flags.DEFINE_boolean("log_tensorboard", False,
-                     "Whether or not to log info using tensorboard")
-
-flags.DEFINE_string("train_dir",
-                    os.path.join(BASE_DIR, TRAIN_DIR) + "/", "Train directory")
-
-flags.DEFINE_integer("embed_dim", 20, "Dimension of embbeddings.")
-
-flags.DEFINE_list("filters", [128], "Dimension of embbeddings.")
-
-flags.DEFINE_integer("ngram", 3, "Dimension of embbeddings.")
-
-flags.DEFINE_boolean("spatial_dropout", False,
-                     "Whether or  to use spatial dropout for Embbeddings.")
-
-flags.DEFINE_float("dropout", 0.1, "Embbeddings dropout.")
-
-flags.DEFINE_boolean("bilstm", False,
-                     "Whether or not to use bidirectional LSTMs")
-
-flags.DEFINE_integer("lstm_size", 50, "Dimension of LSTM layers.")
-
-flags.DEFINE_float("lstm_dropout", 0.0, "LSTM regular dropout.")
-
-flags.DEFINE_float("lstm_recurrent_dropout", 0.0, "LSTM recurrent dropout.")
-
-flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
-
-flags.DEFINE_string("output_activation", 'sigmoid',
-                    "Activation for the output layer.")
-
-flags.DEFINE_integer(
-    "output_size", 2,
-    "Size of the output layer. Only relevant when using sigmoid output.")
-
-flags.DEFINE_float(
-    "output_threshold", 0.5,
-    "Threshold to classify a sentence as idiomatic or not. Only relevant when using sigmoid output."
-)
-
-flags.DEFINE_string("loss_function", 'binary_crossentropy',
-                    "Loss function to use during training.")
-
-flags.DEFINE_boolean("weighted_loss", True,
-                     "Whether or to use weighted loss for learning.")
-
-flags.DEFINE_integer("batch_size", 32, "Size of batches.")
-
-flags.DEFINE_string("optimizer", 'sgd',
-                    "Which optimizer to use. One of adam, sgd and rmsprop.")
-
-flags.DEFINE_float("learning_rate", 1.0, "Learning rate for the optimizer.")
-
-flags.DEFINE_float("lr_decay", (1.0 / 1.15),
-                   "Rate to which we deca they learning rate during training.")
-
-flags.DEFINE_integer(
-    "start_decay", 6,
-    "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs"
-)
-
-flags.DEFINE_float("clipnorm", 5.0, "Max norm size to clipt the gradients.")
-
-flags.DEFINE_float("init_scale", 0.05,
-                   "Range to initialize the weights of the model.")
-
-flags.DEFINE_integer("verbose", 1, "Verbosity of training")
-
-flags.DEFINE_string("feature", 'upos+xpos+deprel',
-                    "Which feature to use when training de model.")
-FLAGS = flags.FLAGS
+FLAGS = define_cnn_flags(tf.compat.v1.flags, BASE_DIR, TRAIN_DIR)
 
 # define which feature we can use to train de model
 
@@ -266,72 +185,22 @@ else:
     y_train = tf.keras.utils.to_categorical(y_train)
     y_val = tf.keras.utils.to_categorical(y_val)
 
-#
-# optimizers
-if str(FLAGS.optimizer).lower() == 'sgd':
-    optimizer = tf.keras.optimizers.SGD(learning_rate=FLAGS.learning_rate,
-                                        clipnorm=FLAGS.clipnorm)
-
-elif FLAGS.optimizer == 'adam':
-    optimizer = tf.keras.optimizers.Adam(learning_rate=FLAGS.learning_rate,
-                                         clipnorm=FLAGS.clipnorm)
-
-elif FLAGS.optimizer == 'rmsprop':
-    optimizer = tf.keras.optimizers.RMSprop(learning_rate=FLAGS.learning_rate,
-                                            clipnorm=FLAGS.clipnorm)
 
 # compiling model
 model.compile(loss=FLAGS.loss_function,
-              optimizer=optimizer,
+              optimizer=get_optimizer(FLAGS),
               metrics=['accuracy'])
 
 print(model.summary())
 
-checkpoint = tf.keras.callbacks.ModelCheckpoint(FLAGS.train_dir + model_name,
-                                                save_best_only=True)
-callbacks = [checkpoint]
-
-if FLAGS.early_stop_patience > 0:
-    early_stop = tf.keras.callbacks.EarlyStopping(
-        monitor='loss',
-        min_delta=FLAGS.early_stop_delta,
-        patience=FLAGS.early_stop_patience)
-    callbacks.append(early_stop)
-
-if FLAGS.log_tensorboard:
-    tensorboard = tf.keras.callbacks.TensorBoard(log_dir=FLAGS.train_dir +
-                                                 '/logs')
-    callbacks.append(tensorboard)
-
-
-def lr_scheduler(epoch, lr):
-    lr_decay = FLAGS.lr_decay**max(epoch - FLAGS.start_decay, 0.0)
-    return lr * lr_decay
-
-
-if FLAGS.start_decay > 0:
-    lrate = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
-    callbacks.append(lrate)
-
-# calculate class weights for the imbalanced case
-class_weights = None
-if FLAGS.weighted_loss:
-    # class_weights = class_weight.compute_class_weight('balanced', np.unique(y_train.flatten()), y_train.flatten())
-    weights = class_weight.compute_class_weight(
-        'balanced', np.array([0, 1]), np.array([i for i in train_labels]))
-    class_weights = {}
-    for i in range(weights.shape[0]):
-        class_weights[i] = weights[i]
-
-print('Class weights: {}'.format(class_weights))
 
 print('Train...')
 model.fit(x_train,
           y_train,
-          class_weight=class_weights,
+          class_weight=get_class_weights(FLAGS.weighted_loss, train_labels),
           batch_size=FLAGS.batch_size,
           epochs=FLAGS.max_epochs,
-          callbacks=callbacks,
+          callbacks=get_callbacks(FLAGS, model_name),
           verbose=FLAGS.verbose,
           validation_data=(x_val, y_val))
 
