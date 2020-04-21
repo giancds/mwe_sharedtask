@@ -10,7 +10,7 @@ from sklearn.utils import class_weight
 from preprocess import extract_dataset, Features, load_dataset, pre_process_data
 from evaluation import evaluate
 from utils import get_callbacks, get_optimizer, get_class_weights
-from utils import define_cnn_flags, build_model_name
+from utils import define_cnn_flags, build_cnn_name
 
 from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
@@ -31,9 +31,13 @@ FLAGS = define_cnn_flags(tf.compat.v1.flags, BASE_DIR, TRAIN_DIR)
 
 # define which feature we can use to train de model
 
-model_name = build_model_name('sentlevel', FLAGS)
+model_name = build_cnn_name('sentlevel', FLAGS)
 
 
+# filters = FLAGS.filters
+# filters = filters.replace('[', '').replace(']', '').split(',')
+# filters = [int(i) for i in filters]
+FLAGS.filters = [int(i) for i in FLAGS.filters]
 # #####
 # Loading data
 #
@@ -86,9 +90,9 @@ shape = model.layers[0].output_shape
 model.add(tf.keras.layers.Reshape((shape[1], shape[3], shape[2])))
 
 if FLAGS.spatial_dropout:
-    model.add(tf.keras.layers.SpatialDropout1D(FLAGS.dropout))
+    model.add(tf.keras.layers.SpatialDropout2D(FLAGS.emb_dropout))
 else:
-    model.add(tf.keras.layers.Dropout(FLAGS.dropout))
+    model.add(tf.keras.layers.Dropout(FLAGS.emb_dropout))
 
 for filters in FLAGS.filters:
     model.add(
@@ -100,16 +104,22 @@ for filters in FLAGS.filters:
         #    strides=1,
             kernel_initializer=tf.random_uniform_initializer(
                 minval=-FLAGS.init_scale, maxval=FLAGS.init_scale, seed=SEED)))
+    model.add(tf.keras.layers.MaxPooling2D())
 
+if FLAGS.global_pooling == 'average':
+    model.add(tf.keras.layers.GlobalAveragePooling2D())
+else:
     model.add(tf.keras.layers.GlobalMaxPool2D())
 
-model.add(
-    tf.keras.layers.Dense(FLAGS.lstm_size,
-                          activation='relu',
-                          kernel_initializer=tf.random_uniform_initializer(
-                              minval=-FLAGS.init_scale,
-                              maxval=FLAGS.init_scale,
-                              seed=SEED)))
+for layer in range(FLAGS.n_layers):
+    model.add(
+        tf.keras.layers.Dense(FLAGS.dense_size,
+                            activation='relu',
+                            kernel_initializer=tf.random_uniform_initializer(
+                                minval=-FLAGS.init_scale,
+                                maxval=FLAGS.init_scale,
+                                seed=SEED)))
+    model.add(tf.keras.layers.Dropout(FLAGS.dropout))
 
 if FLAGS.output_size == 1:
     model.add(

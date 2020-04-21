@@ -28,6 +28,26 @@ def build_model_name(name, FLAGS):
     print('\nModel name {}\n'.format(name))
     return name
 
+def build_cnn_name(name, FLAGS):
+    name = (
+        '{20}_{21}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}embDropout.'
+        '{22}filters-{23}ngram.{24}pooling.{6}-{7}-{8}dense.'
+        '{9}dropout.{10}-{11}.{12}Loss.{13}batch.{14}.{15}lr.{16}-{17}decay.'
+        '{18}norm.{19}initScale.ckpt').format(
+            FLAGS.max_epochs, FLAGS.early_stop_patience, FLAGS.early_stop_delta,
+            FLAGS.embed_dim, FLAGS.emb_dropout,
+            'spatial-' if FLAGS.spatial_dropout else '', FLAGS.n_layers,
+            FLAGS.dense_size,  FLAGS.dropout, FLAGS.output_size,
+            FLAGS.output_activation,
+            (str(FLAGS.output_threshold) +
+             'outThresh.') if FLAGS.output_size == 1 and
+            FLAGS.output_activation == 'sigmoid' else '', FLAGS.loss_function,
+            FLAGS.batch_size, FLAGS.optimizer, FLAGS.learning_rate,
+            FLAGS.lr_decay, FLAGS.start_decay, FLAGS.clipnorm, FLAGS.init_scale,
+            name, FLAGS.feature, FLAGS.filters, FLAGS.ngram, FLAGS.global_pooling)
+    print('\nModel name {}\n'.format(name))
+    return name
+
 
 def get_callbacks(FLAGS, model_name):
 
@@ -207,23 +227,22 @@ def define_cnn_flags(flags, base_dir, train_dir):
 
     flags.DEFINE_integer("embed_dim", 20, "Dimension of embbeddings.")
 
-    flags.DEFINE_list("filters", [128], "Dimension of embbeddings.")
+    flags.DEFINE_list("filters", [128], "Convolution filters.")
 
-    flags.DEFINE_integer("ngram", 3, "Dimension of embbeddings.")
+    flags.DEFINE_integer("ngram", 3, "N-gram size for the convolution.")
+
+    flags.DEFINE_string("global_pooling", 'max', "Type of global pooling applied at the end of convolutions.")
 
     flags.DEFINE_boolean("spatial_dropout", False,
                          "Whether or  to use spatial dropout for Embbeddings.")
 
-    flags.DEFINE_float("dropout", 0.1, "Embbeddings dropout.")
+    flags.DEFINE_float("emb_dropout", 0.1, "Embbeddings dropout.")
 
-    flags.DEFINE_boolean("bilstm", False,
-                         "Whether or not to use bidirectional LSTMs")
 
-    flags.DEFINE_integer("lstm_size", 50, "Dimension of LSTM layers.")
+    flags.DEFINE_integer("dense_size", 50, "Dimension of LSTM layers.")
 
-    flags.DEFINE_float("lstm_dropout", 0.0, "LSTM regular dropout.")
+    flags.DEFINE_float("dropout", 0.0, "Dense regular dropout.")
 
-    flags.DEFINE_float("lstm_recurrent_dropout", 0.0, "LSTM recurrent dropout.")
 
     flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
 
@@ -269,7 +288,7 @@ def define_cnn_flags(flags, base_dir, train_dir):
 
     flags.DEFINE_integer("verbose", 1, "Verbosity of training")
 
-    flags.DEFINE_string("feature", 'upos+xpos+deprel',
+    flags.DEFINE_string("feature", 'upos+deprel',
                         "Which feature to use when training de model.")
 
     return flags.FLAGS
