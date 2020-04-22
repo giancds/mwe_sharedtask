@@ -96,23 +96,28 @@ def _build_per_word_dataset(text, feature=Features.upos):
     return examples
 
 
-def load_dataset(train_files, feature, per_word=False, cnn=False):
+def load_dataset(train_files, feature, per_word=False, cnn=False, train=True):
 
     if cnn:
-        return _load_dataset_for_cnn(train_files, feature, per_word)
+        return _load_dataset_for_cnn(train_files, feature, per_word, train)
 
     else:
-        return _load_dataset_for_rnn(train_files, feature, per_word)
+        return _load_dataset_for_rnn(train_files, feature, per_word, train)
 
 
-def _load_dataset_for_cnn(train_files, features, per_word=False):
+def _load_dataset_for_cnn(train_files, features, per_word=False, train=True):
 
     if len(train_files) == 0:
         _train_files = []
         for root, _, files in os.walk('data/'):
-            for file in files:
-                if file == 'train.cupt':
-                    _train_files.append(os.path.join(root, file))
+            for _file in files:
+                if train:
+                    if _file == 'train.cupt':
+                        _train_files.append(os.path.join(root, _file))
+                else:
+                    if _file == 'dev.cupt':
+                        _train_files.append(os.path.join(root, _file))
+
     else:
         _train_files = train_files
 
@@ -127,14 +132,18 @@ def _load_dataset_for_cnn(train_files, features, per_word=False):
     return train_sents, train_labels
 
 
-def _load_dataset_for_rnn(train_files, feature, per_word=False):
+def _load_dataset_for_rnn(train_files, feature, per_word=False, train=True):
 
     if len(train_files) == 0:
         _train_files = []
         for root, _, files in os.walk('data/'):
             for file in files:
-                if file == 'train.cupt':
-                    _train_files.append(os.path.join(root, file))
+                if train:
+                    if file == 'train.cupt':
+                        _train_files.append(os.path.join(root, file))
+                else:
+                    if file == 'dev.cupt':
+                        _train_files.append(os.path.join(root, file))
     else:
         _train_files = train_files
 

@@ -59,7 +59,7 @@ train_sents, train_labels = load_dataset(train_files,
 # test dataset
 # dev_files = ['data/GA/dev.cupt']
 dev_files = []
-dev_sents, dev_labels = load_dataset(dev_files, per_word=True, feature=_FEATURE)
+dev_sents, dev_labels = load_dataset(dev_files, per_word=True, feature=_FEATURE, train=False)
 
 train_data, dev_data, (max_len, n_tokens) = pre_process_data(
     (train_sents, train_labels), (dev_sents, dev_labels),

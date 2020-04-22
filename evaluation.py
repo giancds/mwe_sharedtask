@@ -14,7 +14,7 @@ def evaluate(model, test_data, perword=False, boosting=False, seq_lens=None):
 def _evaluate_sentlevel(model, x_dev, y_dev, boosting):
 
     if boosting:
-        pass
+        y_pred = model.predict(x_dev)
     else:
         if model.layers[-1].output_shape[1] == 1:
             y_pred = model.predict(x_dev).astype('int')
