@@ -15,7 +15,7 @@ from utils import get_callbacks, get_optimizer, get_class_weights
 from utils import define_rnn_flags, build_model_name
 
 from tensorflow.python.framework.ops import disable_eager_execution
-# disable_eager_execution()
+disable_eager_execution()
 
 # #####
 # Hyper-parametsr definitions
@@ -50,8 +50,8 @@ print('Pre-processing data...')
 
 # train dataset
 
-train_files = ['data/GA/train.cupt']
-# train_files = []
+# train_files = ['data/GA/train.cupt']
+train_files = []
 train_sents, train_labels = load_dataset(train_files, feature=_FEATURE)
 
 # validation/dev dataset
