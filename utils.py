@@ -6,7 +6,6 @@ import tensorflow as tf
 from sklearn.utils import class_weight
 
 
-
 def build_model_name(name, FLAGS):
     name = (
         '{21}_{22}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}dropout.{6}-{7}-{8}lstm.'
@@ -28,6 +27,7 @@ def build_model_name(name, FLAGS):
     print('\nModel name {}\n'.format(name))
     return name
 
+
 def build_cnn_name(name, FLAGS):
     name = (
         '{20}_{21}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}embDropout.'
@@ -37,14 +37,15 @@ def build_cnn_name(name, FLAGS):
             FLAGS.max_epochs, FLAGS.early_stop_patience, FLAGS.early_stop_delta,
             FLAGS.embed_dim, FLAGS.emb_dropout,
             'spatial-' if FLAGS.spatial_dropout else '', FLAGS.n_layers,
-            FLAGS.dense_size,  FLAGS.dropout, FLAGS.output_size,
+            FLAGS.dense_size, FLAGS.dropout, FLAGS.output_size,
             FLAGS.output_activation,
             (str(FLAGS.output_threshold) +
              'outThresh.') if FLAGS.output_size == 1 and
             FLAGS.output_activation == 'sigmoid' else '', FLAGS.loss_function,
             FLAGS.batch_size, FLAGS.optimizer, FLAGS.learning_rate,
             FLAGS.lr_decay, FLAGS.start_decay, FLAGS.clipnorm, FLAGS.init_scale,
-            name, FLAGS.feature, FLAGS.filters, FLAGS.ngram, FLAGS.global_pooling)
+            name, FLAGS.feature, FLAGS.filters, FLAGS.ngram,
+            FLAGS.global_pooling)
     print('\nModel name {}\n'.format(name))
     return name
 
@@ -119,10 +120,11 @@ def define_rnn_flags(flags, base_dir, train_dir):
                          "Max number of epochs to train the models")
 
     flags.DEFINE_integer("n_estimators", 5,
-                     "Number of models to train for the ensemble.")
+                         "Number of models to train for the ensemble.")
 
-    flags.DEFINE_float("boost_lr", 1.0,
-                   "Learning rate for the contributions of each classifier.")
+    flags.DEFINE_float(
+        "boost_lr", 1.0,
+        "Learning rate for the contributions of each classifier.")
 
     flags.DEFINE_integer(
         "early_stop_patience", 10,
@@ -231,18 +233,18 @@ def define_cnn_flags(flags, base_dir, train_dir):
 
     flags.DEFINE_integer("ngram", 3, "N-gram size for the convolution.")
 
-    flags.DEFINE_string("global_pooling", 'max', "Type of global pooling applied at the end of convolutions.")
+    flags.DEFINE_string(
+        "global_pooling", 'max',
+        "Type of global pooling applied at the end of convolutions.")
 
     flags.DEFINE_boolean("spatial_dropout", False,
                          "Whether or  to use spatial dropout for Embbeddings.")
 
     flags.DEFINE_float("emb_dropout", 0.1, "Embbeddings dropout.")
 
-
     flags.DEFINE_integer("dense_size", 50, "Dimension of LSTM layers.")
 
     flags.DEFINE_float("dropout", 0.0, "Dense regular dropout.")
-
 
     flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
 
