@@ -1,23 +1,14 @@
 import os
 
-import numpy as np
 import tensorflow as tf
 
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, classification_report
-from sklearn.utils import class_weight
-
-from preprocess import extract_dataset, Features, load_dataset, pre_process_data
+from preprocess import Features, load_dataset, pre_process_data
 from evaluation import evaluate
 from utils import get_callbacks, get_optimizer, get_class_weights
 from utils import define_cnn_flags, build_cnn_name
 
 from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
-
-# #####
-# Hyper-parametsr definitions
-#
 
 # pylint: disable=W0613,C0103,C0112
 SEED = 42
