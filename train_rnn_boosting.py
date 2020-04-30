@@ -1,15 +1,11 @@
 import os
 
-import numpy as np
 import tensorflow as tf
 
 from sklearn.ensemble import AdaBoostClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, classification_report, f1_score
-from sklearn.utils import class_weight
 
 from classifiers import BoostedClassifier
-from preprocess import extract_dataset, Features, load_dataset, pre_process_data
+from preprocess import Features, load_dataset, pre_process_data
 from evaluation import evaluate
 from utils import get_callbacks, get_optimizer, get_class_weights
 from utils import define_rnn_flags, build_model_name

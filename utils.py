@@ -212,6 +212,14 @@ def define_cnn_flags(flags, base_dir, train_dir):
     flags.DEFINE_integer("max_epochs", 100,
                          "Max number of epochs to train the models")
 
+    flags.DEFINE_integer("n_estimators", 5,
+                         "Number of models to train for the ensemble.")
+
+    flags.DEFINE_float(
+        "boost_lr", 1.0,
+        "Learning rate for the contributions of each classifier.")
+
+
     flags.DEFINE_integer(
         "early_stop_patience", 10,
         "How many training steps to monitor. Set to 0 to ignore.")

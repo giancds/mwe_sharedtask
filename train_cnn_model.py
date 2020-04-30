@@ -22,12 +22,8 @@ FLAGS = define_cnn_flags(tf.compat.v1.flags, BASE_DIR, TRAIN_DIR)
 
 # define which feature we can use to train de model
 
-model_name = build_cnn_name('sentlevel', FLAGS)
+model_name = build_cnn_name('sentlevel_cnn', FLAGS)
 
-
-# filters = FLAGS.filters
-# filters = filters.replace('[', '').replace(']', '').split(',')
-# filters = [int(i) for i in filters]
 FLAGS.filters = [int(i) for i in FLAGS.filters]
 # #####
 # Loading data
