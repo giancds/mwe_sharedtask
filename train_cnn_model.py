@@ -11,6 +11,11 @@ from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
 
 # pylint: disable=W0613,C0103,C0112
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(gpus[0], True)
+
+#
 SEED = 42
 BASE_DIR = os.path.expanduser("~")     # this will point to the user's home
 TRAIN_DIR = "train_mwe_classifier"

@@ -69,7 +69,7 @@ def get_callbacks(FLAGS, model_name):
                                                      '/logs')
         callbacks.append(tensorboard)
 
-    def lr_scheduler(epoch, lr):
+    def lr_scheduler(epoch, lr): # pylint: disable=C0103
         lr_decay = FLAGS.lr_decay**max(epoch - FLAGS.start_decay, 0.0)
         return lr * lr_decay
 
