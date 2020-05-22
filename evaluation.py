@@ -5,10 +5,9 @@ def evaluate(model, test_data, perword=False, boosting=False, seq_lens=None):
     x_dev, y_dev = test_data
 
     if perword:
-        _evaluate_perword(model, x_dev, y_dev, seq_lens)
+        return _evaluate_perword(model, x_dev, y_dev, seq_lens)
 
-    else:
-        _evaluate_sentlevel(model, x_dev, y_dev, boosting)
+    return _evaluate_sentlevel(model, x_dev, y_dev, boosting)
 
 
 def _evaluate_sentlevel(model, x_dev, y_dev, boosting):
@@ -27,6 +26,10 @@ def _evaluate_sentlevel(model, x_dev, y_dev, boosting):
 
     print('\n\nReport')
     print(classification_report(y_dev, y_pred))
+
+    _results = classification_report(y_dev, y_pred, output_dict=True)
+
+    return _results
 
 
 def _evaluate_perword(model, x_dev, y_dev, seq_lens):
@@ -47,3 +50,7 @@ def _evaluate_perword(model, x_dev, y_dev, seq_lens):
 
     print('\n\nReport')
     print(classification_report(y_true, y_pred))
+
+    _results = classification_report(y_true, y_pred, output_dict=True)
+
+    return _results

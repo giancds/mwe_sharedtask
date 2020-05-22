@@ -6,6 +6,13 @@ import tensorflow as tf
 from sklearn.utils import class_weight
 
 
+def convert_flags_to_dict(flags):
+    flags_as_dict = {}
+    for key in flags:
+        flags_as_dict[key] = flags[key].value
+    return flags_as_dict
+
+
 def build_model_name(name, FLAGS):
     name = (
         '{21}_{22}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}dropout.{6}-{7}-{8}lstm.'
@@ -29,23 +36,41 @@ def build_model_name(name, FLAGS):
 
 
 def build_cnn_name(name, FLAGS):
+    _config = FLAGS
+    if not isinstance(FLAGS, dict):
+        _config = convert_flags_to_dict(FLAGS)
     name = (
         '{20}_{21}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}embDropout.'
         '{22}filters-{23}ngram.{24}pooling.{6}-{7}-{8}dense.'
         '{9}dropout.{10}-{11}.{12}Loss.{13}batch.{14}.{15}lr.{16}-{17}decay.'
         '{18}norm.{19}initScale.ckpt').format(
-            FLAGS.max_epochs, FLAGS.early_stop_patience, FLAGS.early_stop_delta,
-            FLAGS.embed_dim, FLAGS.emb_dropout,
-            'spatial-' if FLAGS.spatial_dropout else '', FLAGS.n_layers,
-            FLAGS.dense_size, FLAGS.dropout, FLAGS.output_size,
-            FLAGS.output_activation,
-            (str(FLAGS.output_threshold) +
-             'outThresh.') if FLAGS.output_size == 1 and
-            FLAGS.output_activation == 'sigmoid' else '', FLAGS.loss_function,
-            FLAGS.batch_size, FLAGS.optimizer, FLAGS.learning_rate,
-            FLAGS.lr_decay, FLAGS.start_decay, FLAGS.clipnorm, FLAGS.init_scale,
-            name, FLAGS.feature, FLAGS.filters, FLAGS.ngram,
-            FLAGS.global_pooling)
+            _config["max_epochs"],
+            _config["early_stop_patience"],
+            _config["early_stop_delta"],
+            _config["embed_dim"],
+            _config["emb_dropout"],
+            'spatial-' if _config["spatial_dropout"] else '',
+            _config["n_layers"],
+            _config["dense_size"],
+            _config["dropout"],
+            _config["output_size"],
+            _config["output_activation"],
+            (str(_config["output_threshold"]) +
+                'outThresh.') if _config["output_size"] == 1 and
+                _config["output_activation"] == 'sigmoid' else '',
+            _config["loss_function"],
+            _config["batch_size"],
+            _config["optimizer"],
+            _config["learning_rate"],
+            _config["lr_decay"],
+            _config["start_decay"],
+            _config["clipnorm"],
+            _config["init_scale"],
+            name,
+            _config["feature"],
+            _config["filters"],
+            _config["ngram"],
+            _config["global_pooling"])
     print('\nModel name {}\n'.format(name))
     return name
 
@@ -245,14 +270,14 @@ def define_cnn_flags(flags, base_dir, train_dir):
         "global_pooling", 'max',
         "Type of global pooling applied at the end of convolutions.")
 
-    flags.DEFINE_boolean("spatial_dropout", False,
+    flags.DEFINE_boolean("spatial_dropout", True,
                          "Whether or  to use spatial dropout for Embbeddings.")
 
     flags.DEFINE_float("emb_dropout", 0.1, "Embbeddings dropout.")
 
     flags.DEFINE_integer("dense_size", 50, "Dimension of LSTM layers.")
 
-    flags.DEFINE_float("dropout", 0.0, "Dense regular dropout.")
+    flags.DEFINE_float("dropout", 0.1, "Dense regular dropout.")
 
     flags.DEFINE_integer("n_layers", 1, "Number of LSTM layers.")
 
@@ -280,14 +305,14 @@ def define_cnn_flags(flags, base_dir, train_dir):
         "optimizer", 'sgd',
         "Which optimizer to use. One of adam, sgd and rmsprop.")
 
-    flags.DEFINE_float("learning_rate", 1.0, "Learning rate for the optimizer.")
+    flags.DEFINE_float("learning_rate", 0.0001, "Learning rate for the optimizer.")
 
     flags.DEFINE_float(
         "lr_decay", (1.0 / 1.15),
         "Rate to which we deca they learning rate during training.")
 
     flags.DEFINE_integer(
-        "start_decay", 6,
+        "start_decay", 0,
         "Epoch to start the learning rate decay. To disable, set it to either 0 or to max_epochs"
     )
 
