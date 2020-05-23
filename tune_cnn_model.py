@@ -180,7 +180,8 @@ def train_model(config):
 
     # compiling model
     model.compile(loss=config["loss_function"],
-                optimizer=optimizer(config["learning_rate"],config["clipnorm"]),
+                optimizer=optimizer(learning_rate=config["learning_rate"],
+                                    clipnorm=config["clipnorm"]),
                 metrics=['accuracy'])
 
     print(model.summary())
@@ -240,24 +241,24 @@ def train_model(config):
     #
     _results = evaluate(model, test_data=(config["x_dev"], config["y_dev"]))
 
-    tune.track.log(
-        accuracy=_results["accuracy"],
-        label0_precision=_results["0"]["precision"],
-        label0_recall=_results["0"]["recall"],
-        label0_f1_score=_results["0"]["f1-score"],
-        label0_support=_results["0"]["support"],
-        label1_precision=_results["1"]["precision"],
-        label1_recall=_results["1"]["recall"],
-        label1_f1_score=_results["1"]["f1-score"],
-        label1_support=_results["1"]["support"],
-        macro_precision=_results["macro avg"]["precision"],
-        macro_recall=_results["macro avg"]["recall"],
-        macro_f1_score=_results["macro avg"]["f1-score"],
-        macro_support=_results["macro avg"]["support"],
-        weighted_precision=_results["weighted avg"]["precision"],
-        weighted_recall=_results["weighted avg"]["recall"],
-        weighted_f1_score=_results["weighted avg"]["f1-score"],
-        weighted_support=_results["weighted avg"]["support"])
+    # tune.track.log(
+    #     accuracy=_results["accuracy"],
+    #     label0_precision=_results["0"]["precision"],
+    #     label0_recall=_results["0"]["recall"],
+    #     label0_f1_score=_results["0"]["f1-score"],
+    #     label0_support=_results["0"]["support"],
+    #     label1_precision=_results["1"]["precision"],
+    #     label1_recall=_results["1"]["recall"],
+    #     label1_f1_score=_results["1"]["f1-score"],
+    #     label1_support=_results["1"]["support"],
+    #     macro_precision=_results["macro avg"]["precision"],
+    #     macro_recall=_results["macro avg"]["recall"],
+    #     macro_f1_score=_results["macro avg"]["f1-score"],
+    #     macro_support=_results["macro avg"]["support"],
+    #     weighted_precision=_results["weighted avg"]["precision"],
+    #     weighted_recall=_results["weighted avg"]["recall"],
+    #     weighted_f1_score=_results["weighted avg"]["f1-score"],
+    #     weighted_support=_results["weighted avg"]["support"])
 
     return _results
 
@@ -297,7 +298,7 @@ results = tune.run_experiments(
         name="tune-cnn",
         config=_config,
          stop={
-            "accuracy": 0.99,
+            "keras_info/label1_f1_score": 0.99,
             "training_iteration": 10**8
         },
         resources_per_trial={
@@ -309,14 +310,35 @@ results = tune.run_experiments(
         checkpoint_at_end=False),
     scheduler=AsyncHyperBandScheduler(
         time_attr='epoch',
-        metric='1-f1-score',
+        metric='keras_info/label1_f1_score',
         mode='max',
         max_t=400,
         grace_period=20),
     search_alg=HyperOptSearch(
-            search_space,
-            metric="1-f1-score",
-            mode="max",
-            random_state_seed=SEED))
-
+        search_space,
+        metric="keras_info/label1_f1_score",
+        mode="max",
+        random_state_seed=SEED,
+        points_to_evaluate=[{
+            "embed_dim": 2,
+            "emb_dropout": 0.1,
+            "dropout": 0.1,
+            "spatial_dropout": 0,
+            "init_scale": 0.05,
+            "n_layers": 0,
+            "dense_size": 3,
+            "max_epochs": 0,
+            "early_stop_delta": 0,
+            "early_stop_patience": 0,
+            "optimizer": 1,
+            "output_activation": 0,
+            "feature":  0,
+            "filters": 0,
+            "ngram": 2,
+            "global_pooling": 1,
+            "clipnorm": 1,
+            "learning_rate": 0.0001,
+            "optimizer": 1,
+            "batch_size": 2,
+        }]))
 results.dataframe().to_csv(_config["train_dir"] + '/results.csv')
