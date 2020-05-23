@@ -233,7 +233,7 @@ def train_model(config):
         batch_size=config["batch_size"],
         epochs=config["max_epochs"],
         callbacks=callbacks,
-        verbose=1,
+        verbose=2,
         validation_data=(config["x_val"], y_val))
 
     # #####
