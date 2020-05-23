@@ -88,7 +88,6 @@ _config["max_len"] = max_len
 
 print("Building model...")
 
-
 def train_model(config):
 
     model_name = build_model_name('sentlevel', config)
@@ -247,7 +246,7 @@ search_space = {
     "n_layers":
         hp.choice("n_layers", [1, 2, 3, 4]),
     "lstm_size":
-        hp.choice("dense_size", [50, 100, 150, 200, 250, 500]),
+        hp.choice("lstm_size", [50, 100, 150, 200, 250, 500]),
     "max_epochs":
         hp.choice("max_epochs", [30, 50, 70]),
     "early_stop_delta":
@@ -267,59 +266,64 @@ search_space = {
     "batch_size":
         hp.choice("batch_size", [20, 24, 32, 64, 128]),
 }
+
+
 _config.update({
     "threads": 1,
-    "start_decay": 0,
-    "output_size": 2})
+    "output_size": 2,
+    "start_decay": 0
+})
 
 results = tune.run_experiments(
     tune.Experiment(
         run=train_model,
-        name="tune-cnn",
+        name="tune-rnn",
         config=_config,
-        stop={
-            "keras_info/label1_f1_score": 0.99,
+         stop={
+            "keras_info/label1_f1_score": 0.9,
             "training_iteration": 10**8
         },
         resources_per_trial={
             "cpu": 2,
             "gpu": 1
         },
-        num_samples=10,
+        num_samples=20,
         checkpoint_freq=0,
         checkpoint_at_end=False),
     scheduler=AsyncHyperBandScheduler(
-        time_attr='epoch',
-        metric='keras_info/label1_f1_score',
-        mode='max',
+        time_attr="epoch",
+        metric="keras_info/label1_f1_score",
+        mode="max",
         max_t=400,
         grace_period=20),
     search_alg=HyperOptSearch(
-        search_space,
-        metric="keras_info/label1_f1_score",
-        mode="max",
-        random_state_seed=SEED,
-        points_to_evaluate=[{
-            "embed_dim": 2,
-            "emb_dropout": 0.1,
-            "dropout": 0.1,
-            "spatial_dropout": 0,
-            "init_scale": 0.05,
-            "n_layers": 0,
-            "dense_size": 3,
-            "max_epochs": 0,
-            "early_stop_delta": 0,
-            "early_stop_patience": 0,
-            "optimizer": 1,
-            "output_activation": 0,
-            "feature": 0,
-            "filters": 0,
-            "ngram": 2,
-            "global_pooling": 1,
-            "clipnorm": 1,
-            "learning_rate": 0.0001,
-            "optimizer": 1,
-            "batch_size": 2,
-        }]),
-    verbose=1)
+            search_space,
+            metric="keras_info/label1_f1_score",
+            mode="max",
+            random_state_seed=SEED,
+            points_to_evaluate=[{
+                "embed_dim": 2,
+                "emb_dropout": 0.1,
+                "dropout": 0.1,
+                "lstm_dropout": 0.2,
+                "lstm_recurrent_dropout": 0.0,
+                "bilstm": 1,
+                "spatial_dropout": 0,
+                "init_scale": 0.05,
+                "n_layers": 0,
+                "lstm_size": 1,
+                "max_epochs": 1,
+                "early_stop_delta": 0,
+                "early_stop_patience": 0,
+                "optimizer": 1,
+                "output_activation": 0,
+                "feature":  0,
+                "clipnorm": 1,
+                "learning_rate": 0.0001,
+                "optimizer": 0,
+                "batch_size": 2,
+            }]),
+    verbose=1,)
+
+
 results.dataframe().to_csv(_config["train_dir"] + '/rnn_results.csv')

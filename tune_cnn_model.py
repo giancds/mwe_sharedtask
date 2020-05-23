@@ -286,7 +286,7 @@ results = tune.run_experiments(
             "cpu": 2,
             "gpu": 1
         },
-        num_samples=10,
+        num_samples=20,
         checkpoint_freq=0,
         checkpoint_at_end=False),
     scheduler=AsyncHyperBandScheduler(
