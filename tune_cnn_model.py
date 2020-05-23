@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from sklearn.utils import class_weight
 from preprocess import Features, load_dataset, pre_process_data
-from evaluation import evaluate
+from evaluation import evaluate, MetricsReporterCallback
 from utils import get_callbacks, get_optimizer
 from utils import define_cnn_flags, build_cnn_name, convert_flags_to_dict
 
@@ -38,7 +38,7 @@ FLAGS = define_cnn_flags(tf.compat.v1.flags, BASE_DIR, TRAIN_DIR)
 
 # define which feature we can use to train de model
 
-model_name = build_cnn_name('sentlevel_cnn', FLAGS)
+
 
 FLAGS.filters = [int(i) for i in FLAGS.filters]
 # #####
@@ -86,12 +86,13 @@ _config["x_dev"] = _x_dev
 _config["y_dev"] = _y_dev
 
 _config["n_tokens"] = n_tokens
-_config["max_len"] = _y_dev
+_config["max_len"] = max_len
 
 
 
 def train_model(config):
 
+    model_name = build_cnn_name('sentlevel_cnn', config)
 
     print("Building model...")
 
@@ -198,11 +199,13 @@ def train_model(config):
     print('Class weights: {}'.format(class_weights))
 
 
-
     checkpoint = tf.keras.callbacks.ModelCheckpoint(config["train_dir"] +
                                                     model_name,
                                                     save_best_only=True)
-    callbacks = [checkpoint]
+    callbacks = [
+        MetricsReporterCallback(
+            custom_validation_data=(config["x_val"], y_val)),
+        checkpoint]
 
     if config["early_stop_patience"] > 0:
         early_stop = tf.keras.callbacks.EarlyStopping(
@@ -320,4 +323,4 @@ results = tune.run_experiments(
             "batch_size": 2,
         }]),
     verbose=1)
-results.dataframe().to_csv(_config["train_dir"] + '/results.csv')
+results.dataframe().to_csv(_config["train_dir"] + '/cnn_results.csv')

@@ -14,23 +14,40 @@ def convert_flags_to_dict(flags):
 
 
 def build_model_name(name, FLAGS):
+    _config = FLAGS
+    if not isinstance(FLAGS, dict):
+        _config = convert_flags_to_dict(FLAGS)
     name = (
         '{21}_{22}_{0}epochs.{1}-{2}eStop.{3}embDim.{4}-{5}dropout.{6}-{7}-{8}lstm.'
         '{9}lstmDrop.{10}lstmRecDrop.{11}-{12}.'
         '{14}Loss.{15}batch.{16}.{17}lr.{18}-{19}decay.{20}norm.'
         '{21}initScale.ckpt').format(
-            FLAGS.max_epochs, FLAGS.early_stop_patience, FLAGS.early_stop_delta,
-            FLAGS.embed_dim, FLAGS.dropout,
-            'spatial-' if FLAGS.spatial_dropout else '', FLAGS.n_layers,
-            FLAGS.lstm_size, 'bi-' if FLAGS.bilstm else '', FLAGS.lstm_dropout,
-            FLAGS.lstm_recurrent_dropout, FLAGS.output_size,
-            FLAGS.output_activation,
-            (str(FLAGS.output_threshold) +
-             'outThresh.') if FLAGS.output_size == 1 and
-            FLAGS.output_activation == 'sigmoid' else '', FLAGS.loss_function,
-            FLAGS.batch_size, FLAGS.optimizer, FLAGS.learning_rate,
-            FLAGS.lr_decay, FLAGS.start_decay, FLAGS.clipnorm, FLAGS.init_scale,
-            name, FLAGS.feature)
+            _config["max_epochs"],
+            _config["early_stop_patience"],
+            _config["early_stop_delta"],
+            _config["embed_dim"],
+            _config["dropout"],
+            'spatial-' if _config["spatial_dropout"] else '',
+            _config["n_layers"],
+            _config["lstm_size"],
+            'bi-' if _config["bilstm"] else '',
+            _config["lstm_dropout"],
+            _config["lstm_recurrent_dropout"],
+            _config["output_size"],
+            _config["output_activation"],
+            (str(_config["output_threshold"]) +
+             'outThresh.') if _config["output_size"] == 1 and
+            _config["output_activation"] == 'sigmoid' else '',
+            _config["loss_function"],
+            _config["batch_size"],
+            _config["optimizer"],
+            _config["learning_rate"],
+            _config["lr_decay"],
+            _config["start_decay"],
+            _config["clipnorm"],
+            _config["init_scale"],
+            name,
+            _config["feature"])
     print('\nModel name {}\n'.format(name))
     return name
 
