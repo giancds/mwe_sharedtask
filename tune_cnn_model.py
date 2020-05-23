@@ -288,7 +288,7 @@ search_space = {
 
 
 _config.update({
-    "threads": 2,
+    "threads": 1,
     "output_size": 2
 })
 
@@ -302,8 +302,8 @@ results = tune.run_experiments(
             "training_iteration": 10**8
         },
         resources_per_trial={
-            "cpu": 2,
-            "gpu": 0
+            "cpu": 4,
+            "gpu": 1
         },
         num_samples=10,
         checkpoint_freq=0,
