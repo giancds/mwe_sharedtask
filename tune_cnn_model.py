@@ -22,9 +22,9 @@ disable_eager_execution()
 
 # pylint: disable=W0613,C0103,C0112
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if len(gpus) > 0:
-    tf.config.experimental.set_memory_growth(gpus[0], True)
+# gpus = tf.config.experimental.list_physical_devices('GPU')
+# if len(gpus) > 0:
+#     tf.config.experimental.set_memory_growth(gpus[0], True)
 
 #
 SEED = 42
@@ -46,7 +46,7 @@ FLAGS.filters = [int(i) for i in FLAGS.filters]
 #
 
 _config = convert_flags_to_dict(FLAGS)
-_config["is_dev"] = True
+_config["is_dev"] = False
 
 cwd = os.getcwd()
 
@@ -233,35 +233,13 @@ def train_model(config):
         batch_size=config["batch_size"],
         epochs=config["max_epochs"],
         callbacks=callbacks,
-        verbose=config["verbose"],
+        verbose=1,
         validation_data=(config["x_val"], y_val))
 
     # #####
     # Evaluation time
     #
-    _results = evaluate(model, test_data=(config["x_dev"], config["y_dev"]))
-
-    # tune.track.log(
-    #     accuracy=_results["accuracy"],
-    #     label0_precision=_results["0"]["precision"],
-    #     label0_recall=_results["0"]["recall"],
-    #     label0_f1_score=_results["0"]["f1-score"],
-    #     label0_support=_results["0"]["support"],
-    #     label1_precision=_results["1"]["precision"],
-    #     label1_recall=_results["1"]["recall"],
-    #     label1_f1_score=_results["1"]["f1-score"],
-    #     label1_support=_results["1"]["support"],
-    #     macro_precision=_results["macro avg"]["precision"],
-    #     macro_recall=_results["macro avg"]["recall"],
-    #     macro_f1_score=_results["macro avg"]["f1-score"],
-    #     macro_support=_results["macro avg"]["support"],
-    #     weighted_precision=_results["weighted avg"]["precision"],
-    #     weighted_recall=_results["weighted avg"]["recall"],
-    #     weighted_f1_score=_results["weighted avg"]["f1-score"],
-    #     weighted_support=_results["weighted avg"]["support"])
-
-    return _results
-
+    evaluate(model, test_data=(config["x_dev"], config["y_dev"]))
 
 search_space = {
     "embed_dim": hp.choice("embed_dim", [10, 20, 30, 50, 75, 100]),
@@ -302,7 +280,7 @@ results = tune.run_experiments(
             "training_iteration": 10**8
         },
         resources_per_trial={
-            "cpu": 4,
+            "cpu": 2,
             "gpu": 1
         },
         num_samples=10,
@@ -340,5 +318,6 @@ results = tune.run_experiments(
             "learning_rate": 0.0001,
             "optimizer": 1,
             "batch_size": 2,
-        }]))
+        }]),
+    verbose=1)
 results.dataframe().to_csv(_config["train_dir"] + '/results.csv')
