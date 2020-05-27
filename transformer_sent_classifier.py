@@ -49,31 +49,31 @@ def eval(_y_true, _y_pred):
 
 
 print('KNeighborsClassifier')
-knn = KNeighborsClassifier()
+knn = KNeighborsClassifier(n_jobs=-1)
 knn.fit(x_train, y_train)
 y_pred = knn.predict(x_dev)
 eval(y_dev, y_pred)
 
 print('LinearSVC')
-linear_svc = LinearSVC(dual=False, class_weight='balanced')
+linear_svc = LinearSVC(dual=False, class_weight='balanced', random_state=SEED)
 linear_svc.fit(x_train, y_train)
 y_pred = linear_svc.predict(x_dev)
 eval(y_dev, y_pred)
 
 print('SVC')
-svc = SVC(class_weight='balanced')
+svc = SVC(class_weight='balanced', random_state=SEED)
 svc.fit(x_train, y_train)
 y_pred = svc.predict(x_dev)
 eval(y_dev, y_pred)
 
 print('SGDClassifier')
-sgd = SGDClassifier(class_weight='balanced')
+sgd = SGDClassifier(class_weight='balanced', n_jobs=-1, random_state=SEED)
 sgd.fit(x_train, y_train)
 y_pred = sgd.predict(x_dev)
 eval(y_dev, y_pred)
 
 print('AdaBoostClassifier')
-ada = AdaBoostClassifier()
+ada = AdaBoostClassifier( random_state=SEED)
 ada.fit(x_train, y_train)
 y_pred = ada.predict(x_dev)
 eval(y_dev, y_pred)
