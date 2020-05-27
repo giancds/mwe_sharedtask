@@ -5,3 +5,5 @@ __pycache__
 test_data/
 data/
 *.sh
+.ipynb_checkpoints
+.DS_Store

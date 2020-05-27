@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 
 
 class Features(Enum):
+    word = 1
     upos = 3
     xpos = 4
     deprel = 7
@@ -47,6 +48,41 @@ def process_cup(text):
 
     return pd.DataFrame(features)
 
+
+def load_word_dataset(train_files, train=True):
+
+    if len(train_files) == 0:
+        files = []
+        for root, _, files in os.walk('data/'):
+            for _file in files:
+                if train:
+                    if _file == 'train.cupt':
+                        files.append(os.path.join(root, _file))
+                else:
+                    if _file == 'dev.cupt':
+                        files.append(os.path.join(root, _file))
+
+    else:
+        files = train_files
+
+    sentences, labels = [], []
+    for _file in files:
+        with open(_file) as text:
+            tmp_line = None
+            flag = False
+            for line in text:
+                if line == '\n':
+                    sentences.append(tmp_line)
+                    labels.append(1 if flag else 0)
+                    tmp_line = None
+                    flag = False
+                elif line.startswith('# text = '):
+                    tmp_line = line.replace('# text = ', '').replace('\n', '')
+                elif not line.startswith('#'):
+                    feats = line.split()
+                    if feats[10] is not '*' and not flag:
+                        flag = True
+    return sentences, labels
 
 def extract_dataset(files, per_word=False, feature=Features.upos):
     data = []
