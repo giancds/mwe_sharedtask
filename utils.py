@@ -27,10 +27,10 @@ def build_model_name(FLAGS):
             _config['language_code'],  # 1
             _config['max_epochs'],  # 2
             _config['early_stop_patience'],  # 3
-            _config['early_stop_delta'],  # 4
+            '{:.4f}'.format(_config['early_stop_delta']),  # 4
             str(_config['layers']),  # 5{14}Loss.{15}batch.
             _config['hidden_activation'],  # 6
-            _config['dropout'],  # 7
+            '{:3f}'.format(_config['dropout']),  # 7
             _config['output_size'],  # 8
             _config['output_activation'],  # 9
             _config['output_threshold'],  # 10
@@ -38,10 +38,10 @@ def build_model_name(FLAGS):
             _config['loss_function'],  # 12
             _config['batch_size'],  # 13
             _config['optimizer'],  # 14
-            _config['learning_rate'],  # 15
-            _config['lr_decay'],  # 16
+            '{:.4f}'.format(_config['learning_rate']),  # 15
+            '{:.4f}'.format(_config['lr_decay']),  # 16
             _config['start_decay'],  # 17
-            _config['clipnorm'])   # 18
+            '{:.2f}'.format(_config['clipnorm']))   # 18
     print('\nModel name {}\n'.format(_name))
     return _name
 
