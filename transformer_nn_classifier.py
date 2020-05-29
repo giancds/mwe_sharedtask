@@ -13,10 +13,8 @@ from utils import build_model_name, convert_flags_to_dict, define_nn_flags
 
 import ray
 from ray import tune
-from ray.tune.integration.keras import TuneReporterCallback
 from ray.tune.schedulers import AsyncHyperBandScheduler
 from ray.tune.suggest.hyperopt import HyperOptSearch
-from ray.tune.suggest import Repeater
 from hyperopt import hp
 
 from tensorflow.python.framework.ops import disable_eager_execution
@@ -66,8 +64,12 @@ def train_model(config):
     model = tf.keras.Sequential()
     # embedding
 
+    layer_config = ([config["layer_size"]] * config["nlayers"]
+                    if config["nlayers"] > 0 and config["layer_size"] > 0
+                    else config["layers"])
+
     # Dense layers
-    for i, layer_size in enumerate(config["layers"]):
+    for i, layer_size in enumerate(layer_config):
         if i == 0:
             dense_layer = tf.keras.layers.Dense(
                 layer_size,
@@ -172,18 +174,23 @@ search_space = {
     "max_epochs": hp.choice("max_epochs", [10, 20, 30, 50]),
     "early_stop_delta": hp.choice("early_stop_delta", [0.001, 0.0001]),
     "early_stop_patience": hp.choice("early_stop_patience", [10, 20]),
+    "hidden_activation": hp.choice("hidden_activation", ['tanh', 'relu', 'elu', 'selu']),
     "output_activation": hp.choice("output_activation", ['sigmoid', 'softmax']),
     "clipnorm": hp.choice("clipnorm", [0.5, 1.0, 2.5, 5.0, 10.0]),
     "learning_rate": hp.loguniform("learning_rate", np.log(1e-4), np.log(1e-0)),
     "batch_size": hp.choice("batch_size", [20, 24, 32, 64, 128]),
+    "n_layers": hp.randint('n_layer', 1, 5) * 1,
+    "layer_size": hp.randint('n_layer', 1, 100) * 10,
 }
 
 _config.update({
     "hidden_activation": 'relu',
     "optimizer": 'adam',
-    "threads": 4,
-    "output_size": 2
+    "threads": 1,
+    "output_size": 2,
+    "num_samples": 1
 })
+
 
 if not _config["tune"]:
 
@@ -191,16 +198,22 @@ if not _config["tune"]:
 
 else:
 
+
+    reporter = tune.CLIReporter()
+    reporter.add_metric_column('keras_info/label1_f1_score', 'f1-score')
+
+    ray.shutdown()     # Restart Ray defensively in case the ray connection is lost.
+    ray.init(num_cpus=2)
     results = tune.run(
         train_model,
         name="tune-nn-bert-classifier",
         config=_config,
         stop={
-            "keras_info/label1_f1_score": 0.99,
+            "keras_info/f1_score": 0.99,
             "training_iteration": 10**8
         },
         resources_per_trial={
-            "cpu": 4,
+            "cpu": 1,
             "gpu": 0
         },
         num_samples=_config["num_samples"],
@@ -208,13 +221,13 @@ else:
         checkpoint_at_end=False,
         scheduler=AsyncHyperBandScheduler(
             time_attr='epoch',
-            metric='keras_info/label1_f1_score',
+            metric='f1_score',
             mode='max',
             max_t=400,
             grace_period=20),
         search_alg=HyperOptSearch(
             search_space,
-            metric="keras_info/label1_f1_score",
+            metric="keras_info/f1_score",
             mode="max",
             random_state_seed=SEED,
             points_to_evaluate=[{
@@ -222,11 +235,15 @@ else:
                 "max_epochs": 2,
                 "early_stop_delta": 0,
                 "early_stop_patience": 0,
+                "hidden_activation": 1,
                 "output_activation": 0,
                 "clipnorm": 3,
                 "learning_rate": 0.0001,
-                "batch_size": 3
+                "batch_size": 3,
+                "nlayers": 2,
+                "layer_size": 100
             }]),
+        progress_reporter=reporter,
         verbose=1)
     results.dataframe().to_csv(
         '{0}/nn_results{1}layers.csv'.format(
