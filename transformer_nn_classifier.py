@@ -164,7 +164,7 @@ def train_model(config):
     # #####
     # Evaluation time
     #
-    evaluate(model, test_data=(config["x_dev"], config["y_dev"]))
+    evaluate(model, test_data=(x_dev, y_dev))
 
 
 search_space = {
@@ -200,7 +200,7 @@ else:
                             "training_iteration": 10**8
                         },
                         resources_per_trial={
-                            "cpu": 2,
+                            "cpu": 4,
                             "gpu": 0
                         },
                         num_samples=_config["num_samples"],
