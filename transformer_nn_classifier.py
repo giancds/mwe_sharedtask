@@ -181,7 +181,7 @@ search_space = {
 _config.update({
     "hidden_activation": 'relu',
     "optimizer": 'adam',
-    "threads": 1,
+    "threads": 4,
     "output_size": 2
 })
 
@@ -191,39 +191,43 @@ if not _config["tune"]:
 
 else:
 
-    results = tune.run_experiments(
-        tune.Experiment(run=train_model,
-                        name="tune-nn-bert-classifier",
-                        config=_config,
-                        stop={
-                            "keras_info/label1_f1_score": 0.99,
-                            "training_iteration": 10**8
-                        },
-                        resources_per_trial={
-                            "cpu": 4,
-                            "gpu": 0
-                        },
-                        num_samples=_config["num_samples"],
-                        checkpoint_freq=0,
-                        checkpoint_at_end=False),
-        scheduler=AsyncHyperBandScheduler(time_attr='epoch',
-                                          metric='keras_info/label1_f1_score',
-                                          mode='max',
-                                          max_t=400,
-                                          grace_period=20),
-        search_alg=HyperOptSearch(search_space,
-                                  metric="keras_info/label1_f1_score",
-                                  mode="max",
-                                  random_state_seed=SEED,
-                                  points_to_evaluate=[{
-                                      "dropout": 0.2,
-                                      "max_epochs": 2,
-                                      "early_stop_delta": 0,
-                                      "early_stop_patience": 0,
-                                      "output_activation": 0,
-                                      "clipnorm": 3,
-                                      "learning_rate": 0.0001,
-                                      "batch_size": 3
-                                  }]),
+    results = tune.run(
+        train_model,
+        name="tune-nn-bert-classifier",
+        config=_config,
+        stop={
+            "keras_info/label1_f1_score": 0.99,
+            "training_iteration": 10**8
+        },
+        resources_per_trial={
+            "cpu": 4,
+            "gpu": 0
+        },
+        num_samples=_config["num_samples"],
+        checkpoint_freq=0,
+        checkpoint_at_end=False,
+        scheduler=AsyncHyperBandScheduler(
+            time_attr='epoch',
+            metric='keras_info/label1_f1_score',
+            mode='max',
+            max_t=400,
+            grace_period=20),
+        search_alg=HyperOptSearch(
+            search_space,
+            metric="keras_info/label1_f1_score",
+            mode="max",
+            random_state_seed=SEED,
+            points_to_evaluate=[{
+                "dropout": 0.2,
+                "max_epochs": 2,
+                "early_stop_delta": 0,
+                "early_stop_patience": 0,
+                "output_activation": 0,
+                "clipnorm": 3,
+                "learning_rate": 0.0001,
+                "batch_size": 3
+            }]),
         verbose=1)
-    results.dataframe().to_csv(_config["train_dir"] + '/cnn_results.csv')
+    results.dataframe().to_csv(
+        '{0}/nn_results{1}layers.csv'.format(
+            _config["train_dir"], _config['layers']))
