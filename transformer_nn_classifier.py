@@ -191,7 +191,7 @@ search_space = {
     "nlayers":
         hp.randint('nlayers', 1, 5) * 1,
     "layer_size":
-        hp.randint('layer_size', 1, 100) * 10,
+        hp.randint('layer_size', 1, 101) * 10,
 }
 
 _config.update({
@@ -199,7 +199,7 @@ _config.update({
     "optimizer": 'adam',
     "threads": 4,
     "output_size": 2,
-    # "num_samples": 2
+    "num_samples": 500
 })
 
 if not _config["tune"]:
