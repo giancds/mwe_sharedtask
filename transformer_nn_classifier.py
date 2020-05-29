@@ -41,7 +41,7 @@ def train_model(config):
     model_name = build_model_name(config)
 
     with open('{}/data/{}.embdata.pkl'.format(cwd, config["bert_type"]),
-                'rb') as f:
+              'rb') as f:
         data = pickle.load(f)
 
     x_train = np.concatenate(
@@ -50,10 +50,10 @@ def train_model(config):
         [data[code]['y_train'] for code in _config["codes"]], axis=0)
     print(x_train.shape, y_train.shape)
 
-    x_dev = np.concatenate([data[code]['x_train'] for code in _config["codes"]],
-                            axis=0)
-    y_dev = np.concatenate([data[code]['y_train'] for code in _config["codes"]],
-                            axis=0)
+    x_dev = np.concatenate([data[code]['x_dev'] for code in _config["codes"]],
+                           axis=0)
+    y_dev = np.concatenate([data[code]['y_dev'] for code in _config["codes"]],
+                           axis=0)
     print(x_dev.shape, y_dev.shape)
 
     del data
@@ -69,9 +69,10 @@ def train_model(config):
     # Dense layers
     for i, layer_size in enumerate(config["layers"]):
         if i == 0:
-           dense_layer = tf.keras.layers.Dense(
-               layer_size, input_shape=(x_train.shape[-1],),
-               activation=config["hidden_activation"])
+            dense_layer = tf.keras.layers.Dense(
+                layer_size,
+                input_shape=(x_train.shape[-1],),
+                activation=config["hidden_activation"])
         else:
             dense_layer = tf.keras.layers.Dense(
                 layer_size, activation=config["hidden_activation"])
@@ -82,8 +83,10 @@ def train_model(config):
         model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
     else:
         model.add(
-            tf.keras.layers.Dense(2, activation=config["output_activation"],))
-
+            tf.keras.layers.Dense(
+                2,
+                activation=config["output_activation"],
+            ))
 
     if config["optimizer"] == 'adam':
         optimizer = tf.keras.optimizers.Adam
@@ -102,8 +105,9 @@ def train_model(config):
 
     class_weights = None
     if config["weighted_loss"]:
-        weights = class_weight.compute_class_weight(
-            'balanced', np.unique(y_train), y_train.reshape(-1))
+        weights = class_weight.compute_class_weight('balanced',
+                                                    np.unique(y_train),
+                                                    y_train.reshape(-1))
         class_weights = {}
 
         for i in range(weights.shape[0]):
@@ -122,8 +126,8 @@ def train_model(config):
     callbacks = [checkpoint]
 
     if config["tune"]:
-        callbacks.append(MetricsReporterCallback(
-            custom_validation_data=(x_val, y_val)))
+        callbacks.append(
+            MetricsReporterCallback(custom_validation_data=(x_val, y_val)))
 
     if config["early_stop_patience"] > 0:
         early_stop = tf.keras.callbacks.EarlyStopping(
@@ -203,24 +207,23 @@ else:
                         checkpoint_freq=0,
                         checkpoint_at_end=False),
         scheduler=AsyncHyperBandScheduler(time_attr='epoch',
-                                        metric='keras_info/label1_f1_score',
-                                        mode='max',
-                                        max_t=400,
-                                        grace_period=20),
+                                          metric='keras_info/label1_f1_score',
+                                          mode='max',
+                                          max_t=400,
+                                          grace_period=20),
         search_alg=HyperOptSearch(search_space,
-                                metric="keras_info/label1_f1_score",
-                                mode="max",
-                                random_state_seed=SEED,
-                                points_to_evaluate=[{
-                                    "dropout": 0.2,
-                                    "max_epochs": 2,
-                                    "early_stop_delta": 0,
-                                    "early_stop_patience": 0,
-                                    "output_activation": 0,
-                                    "clipnorm": 3,
-                                    "learning_rate": 0.0001,
-                                    "batch_size": 3
-                                }]),
+                                  metric="keras_info/label1_f1_score",
+                                  mode="max",
+                                  random_state_seed=SEED,
+                                  points_to_evaluate=[{
+                                      "dropout": 0.2,
+                                      "max_epochs": 2,
+                                      "early_stop_delta": 0,
+                                      "early_stop_patience": 0,
+                                      "output_activation": 0,
+                                      "clipnorm": 3,
+                                      "learning_rate": 0.0001,
+                                      "batch_size": 3
+                                  }]),
         verbose=1)
     results.dataframe().to_csv(_config["train_dir"] + '/cnn_results.csv')
-
