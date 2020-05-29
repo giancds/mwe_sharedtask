@@ -180,13 +180,13 @@ search_space = {
     "learning_rate": hp.loguniform("learning_rate", np.log(1e-4), np.log(1e-0)),
     "batch_size": hp.choice("batch_size", [20, 24, 32, 64, 128]),
     "n_layers": hp.randint('n_layer', 1, 5) * 1,
-    "layer_size": hp.randint('n_layer', 1, 100) * 10,
+    "layer_size": hp.randint('layer_size', 1, 100) * 10,
 }
 
 _config.update({
     "hidden_activation": 'relu',
     "optimizer": 'adam',
-    "threads": 1,
+    "threads": 4,
     "output_size": 2,
     "num_samples": 1
 })
@@ -203,7 +203,7 @@ else:
     reporter.add_metric_column('keras_info/label1_f1_score', 'f1-score')
 
     ray.shutdown()     # Restart Ray defensively in case the ray connection is lost.
-    ray.init(num_cpus=2)
+    ray.init(num_cpus=6)
     results = tune.run(
         train_model,
         name="tune-nn-bert-classifier",
