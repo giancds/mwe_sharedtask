@@ -72,44 +72,42 @@ class MetricsReporterCallback(tf.keras.callbacks.Callback):
 
             logs.update({
                 # "accuracy": 0.0accuracy"],
-                "label0_precision": 0.00,
-                "label0_recall": 0.00,
-                "label0_f1_score": 0.00,
+                # "label0_precision": 0.00,
+                # "label0_recall": 0.00,
+                # "label0_f1_score": 0.00,
                 "label0_support": 0.00,
-                "label1_precision": 0.00,
-                "label1_recall": 0.0,
-                "label1_f1_score": 0.0,
+                "precision": 0.00,
+                "recall": 0.0,
+                # "label1_f1_score": 0.0,
                 "f1_score": 0.0,
                 "label1_support": 0.0,
                 "macro_precision": 0.0,
                 "macro_recall": 0.0,
                 "macro_f1_score": 0.0,
-                "macro_support": 0.0,
+                # "macro_support": 0.0,
                 "weighted_precision": 0.0,
                 "weighted_recall": 0.0,
-                "weighted_f1_score": 0.0,
-                "weighted_support": 0.0})
+                "weighted_f1_score": 0.0})
         else:
 
             logs.update({
                 # "accuracy" :self._results["accuracy"],
-                "label0_precision" :self._results["0"]["precision"],
-                "label0_recall" :self._results["0"]["recall"],
-                "label0_f1_score" :self._results["0"]["f1-score"],
+                # "label0_precision" :self._results["0"]["precision"],
+                # "label0_recall" :self._results["0"]["recall"],
+                # "label0_f1_score" :self._results["0"]["f1-score"],
                 "label0_support" :self._results["0"]["support"],
-                "label1_precision" :self._results["1"]["precision"],
-                "label1_recall" :self._results["1"]["recall"],
-                "label1_f1_score" :self._results["1"]["f1-score"],
+                "precision" :self._results["1"]["precision"],
+                "recall" :self._results["1"]["recall"],
+                # "label1_f1_score" :self._results["1"]["f1-score"],
                 "f1_score" :self._results["1"]["f1-score"],
                 "label1_support" :self._results["1"]["support"],
                 "macro_precision" :self._results["macro avg"]["precision"],
                 "macro_recall" :self._results["macro avg"]["recall"],
                 "macro_f1_score" :self._results["macro avg"]["f1-score"],
-                "macro_support" :self._results["macro avg"]["support"],
+                # "macro_support" :self._results["macro avg"]["support"],
                 "weighted_precision" :self._results["weighted avg"]["precision"],
                 "weighted_recall" :self._results["weighted avg"]["recall"],
-                "weighted_f1_score" :self._results["weighted avg"]["f1-score"],
-                "weighted_support" :self._results["weighted avg"]["support"]})
+                "weighted_f1_score" :self._results["weighted avg"]["f1-score"]})
 
         return logs
 
