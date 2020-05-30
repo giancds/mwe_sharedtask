@@ -253,4 +253,4 @@ else:
                        progress_reporter=reporter,
                        verbose=1)
     results.dataframe().to_csv('{0}/nn_results{1}layers.csv'.format(
-        _config["train_dir"], _config['layers']))
+        _config["train_dir"], _config['bert_tipe']))
