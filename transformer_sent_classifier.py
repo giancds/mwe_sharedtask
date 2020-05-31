@@ -121,9 +121,18 @@ knn_space = {
     'n_jobs': hp.choice('n_jobs', [-1])
 }
 
-lsvm_space = {
-    'penalty':hp.choice('penalty', ['l1', 'l2']),
+l2svm_space = {
+    'penalty':hp.choice('penalty', ['l2']),
     'loss':  hp.choice('loss', ['hinge', 'squared_hinge']),
+    'C': hp.loguniform('C', np.log(1e-6), np.log(1e+4)),
+    'class_weight': hp.choice('class_weight', ['balanced']),
+    'random_state': hp.choice('random_state', [SEED]),
+    'dual': hp.choice('dual', [False])
+}
+
+l1svm_space = {
+    'penalty':hp.choice('penalty', ['l1']),
+    'loss':  hp.choice('loss', ['squared_hinge']),
     'C': hp.loguniform('C', np.log(1e-6), np.log(1e+4)),
     'class_weight': hp.choice('class_weight', ['balanced']),
     'random_state': hp.choice('random_state', [SEED]),
@@ -180,7 +189,8 @@ ray.init()
 
 
 run_tune(fit_knn, knn_space)
-run_tune(fit_linear_svm, lsvm_space)
+run_tune(fit_linear_svm, l1svm_space)
+run_tune(fit_linear_svm, l2svm_space)
 run_tune(fit_svm, svm_space)
 run_tune(fit_lregression, lreg_space)
 run_tune(fit_adaboost, adab_space)
