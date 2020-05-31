@@ -14,7 +14,7 @@ tf.compat.v1.flags.DEFINE_string(
 
 tf.compat.v1.flags.DEFINE_string(
     "pooling_type",
-    'average',
+    'bert',
     "Type of averaging to apply to the embbedings")
 
 FLAGS = tf.compat.v1.flags.FLAGS
@@ -36,9 +36,9 @@ def embedd(language_code):
     dev_sentences, dev_labels = load_word_dataset(
         ['data/{}/dev.cupt'.format(language_code)], train=False)
 
-    print('Train {} - \Max.Len. {}'.format(
+    print('Train {} - Max.Len. {}'.format(
         len(train_sentences), max([len(l.split()) for l in train_sentences])))
-    print('Dev {} - \Max.Len. {}'.format(
+    print('Dev {} - Max.Len. {}'.format(
         len(dev_sentences), max([len(l.split()) for l in dev_sentences])))
 
 
@@ -51,7 +51,10 @@ def embedd(language_code):
             add_special_tokens=True,
             return_tensors='tf')
         output = model(input_ids)
-        output = tf.keras.layers.GlobalAveragePooling1D()(output[0]).numpy()
+        if FLAGS.pooling_type == 'average':
+            output = tf.keras.layers.GlobalAveragePooling1D()(output[0]).numpy()
+        else:
+            output = output[0][0].numpy()[:, 0]
         _x_train.append(output)
     _x_train = np.concatenate(_x_train, axis=0)
     _y_train = np.array(train_labels)
