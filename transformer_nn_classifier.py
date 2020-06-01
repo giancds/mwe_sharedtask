@@ -190,8 +190,8 @@ def train_model(config):
         "dev_weighted_recall" :_results["weighted avg"]["recall"],
         "dev_weighted_f1_score" :_results["weighted avg"]["f1-score"]}
 
-    results['run.{}'.format(RUN_ID)] = logs
-    RUN_ID += 1
+    # results['run.{}'.format(RUN_ID)] = logs
+    # RUN_ID += 1
 
     tune.track.log(keras_info=logs)
 
