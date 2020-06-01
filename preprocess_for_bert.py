@@ -9,6 +9,7 @@ from preprocess import load_word_dataset
 
 tf.compat.v1.flags.DEFINE_string(
     "model_type",
+    # 'bert-base-multilingual-cased',
     'distilbert-base-multilingual-cased',
     "Model type to extract the embeddings")
 
@@ -54,7 +55,7 @@ def embedd(language_code):
         if FLAGS.pooling_type == 'average':
             output = tf.keras.layers.GlobalAveragePooling1D()(output[0]).numpy()
         else:
-            output = output[0][0].numpy()[:, 0]
+            output = output[0][0].numpy()[0,:].reshape(1, -1)
         _x_train.append(output)
     _x_train = np.concatenate(_x_train, axis=0)
     _y_train = np.array(train_labels)
@@ -180,4 +181,5 @@ del x_train
 del y_train
 del x_dev
 del y_dev
+
 

@@ -33,6 +33,9 @@ _config["codes"] = (['DE', 'GA', 'HI', 'PT', 'ZH']
 
 cwd = os.getcwd()
 
+RUN_ID = 0
+results = {}
+
 
 def train_model(config):
 
@@ -173,19 +176,22 @@ def train_model(config):
         # "label0_precision" :_results["0"]["precision"],
         # "label0_recall" :_results["0"]["recall"],
         # "label0_f1_score" :_results["0"]["f1-score"],
-        "label0_support" :_results["0"]["support"],
-        "precision" :_results["1"]["precision"],
-        "recall" :_results["1"]["recall"],
+        "dev_label0_support" :_results["0"]["support"],
+        "dev_precision" :_results["1"]["precision"],
+        "dev_recall" :_results["1"]["recall"],
         # "label1_f1_score" :_results["1"]["f1-score"],
-        "f1_score" :_results["1"]["f1-score"],
-        "label1_support" :_results["1"]["support"],
-        "macro_precision" :_results["macro avg"]["precision"],
-        "macro_recall" :_results["macro avg"]["recall"],
-        "macro_f1_score" :_results["macro avg"]["f1-score"],
+        "dev_f1_score" :_results["1"]["f1-score"],
+        "dev_label1_support" :_results["1"]["support"],
+        "dev_macro_precision" :_results["macro avg"]["precision"],
+        "dev_macro_recall" :_results["macro avg"]["recall"],
+        "dev_macro_f1_score" :_results["macro avg"]["f1-score"],
         # "macro_support" :_results["macro avg"]["support"],
-        "weighted_precision" :_results["weighted avg"]["precision"],
-        "weighted_recall" :_results["weighted avg"]["recall"],
-        "weighted_f1_score" :_results["weighted avg"]["f1-score"]}
+        "dev_weighted_precision" :_results["weighted avg"]["precision"],
+        "dev_weighted_recall" :_results["weighted avg"]["recall"],
+        "dev_weighted_f1_score" :_results["weighted avg"]["f1-score"]}
+
+    results['run.{}'.format(RUN_ID)] = logs
+    RUN_ID += 1
 
     tune.track.log(keras_info=logs)
 
