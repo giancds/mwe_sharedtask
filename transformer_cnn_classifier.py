@@ -56,7 +56,8 @@ def train_model(config):
     del data
 
     x_train = tf.keras.preprocessing.sequence.pad_sequences(x_train)
-    y_train = tf.keras.preprocessing.sequence.pad_sequences(y_train)
+    max_len = x_train.shape[1]
+    y_train = tf.keras.preprocessing.sequence.pad_sequences(y_train, maxlen=max_len)
 
     x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                       y_train,
@@ -73,7 +74,7 @@ def train_model(config):
     x_dev = [x_dev, (x_dev > 0).astype(int)]
 
     seq_lens = [len(seq) for seq in y_dev]
-    y_dev = tf.keras.preprocessing.sequence.pad_sequences(y_dev)
+    y_dev = tf.keras.preprocessing.sequence.pad_sequences(y_dev, maxlen=max_len)
     print(x_dev[0].shape, x_dev[1].shape, y_dev.shape)
 
     conv_config = ([config["conv_size"]] * config["nconv"]
