@@ -171,4 +171,4 @@ def _evaluate_perword(model, x_dev, y_dev, seq_lens, output_dict=False):
 
     _results = classification_report(y_true, y_pred, output_dict=output_dict)
 
-    return _results
+    return _results, y_pred

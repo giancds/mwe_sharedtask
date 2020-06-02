@@ -49,6 +49,49 @@ def process_cup(text):
     return pd.DataFrame(features)
 
 
+def load_and_tokenize_dataset(train_files, tokenizer, train=True):
+
+    if len(train_files) == 0:
+        files = []
+        for root, _, files in os.walk('data/'):
+            for _file in files:
+                if train:
+                    if _file == 'train.cupt':
+                        files.append(os.path.join(root, _file))
+                else:
+                    if _file == 'dev.cupt':
+                        files.append(os.path.join(root, _file))
+
+    else:
+        files = train_files
+
+    for _file in files:
+        print(_file)
+    cls = tokenizer.encode('[CLS]')[1]
+    sep = tokenizer.encode('[SEP]')[1]
+
+    sentences, labels = [], []
+    for _file in files:
+        with open(_file) as text:
+            tmp_line = []
+            tmp_label = []
+            for line in text:
+                if line == '\n':
+                    sentences.append([cls] + tmp_line + [sep])
+                    labels.append([0] + tmp_label + [0])
+                    tmp_line = []
+                    tmp_label = []
+                elif not line.startswith('#'):
+                    feats = line.split()
+                    _label = 0 if feats[10] is '*' else 1
+                    tokens = tokenizer.encode(feats[1])
+                    tokens = tokens[1:-1]
+                    _label = [_label] * len(tokens)
+                    tmp_line += tokens
+                    tmp_label += _label
+    return sentences, labels
+
+
 def load_word_dataset(train_files, train=True):
 
     if len(train_files) == 0:
