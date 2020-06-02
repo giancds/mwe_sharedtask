@@ -30,12 +30,14 @@ FLAGS.conv_layers = [int(i) for i in FLAGS.conv_layers]
 FLAGS.dense_layers = [int(i) for i in FLAGS.dense_layers]
 
 _config = convert_flags_to_dict(FLAGS)
-_config["codes"] = (["DE', 'GA', 'HI', 'PT', 'ZH"]
+_config["codes"] = (['DE', 'GA', 'HI', 'PT', 'ZH']
                     if FLAGS.language_code is 'all' else [FLAGS.language_code])
 
 cwd = os.getcwd()
 
 RESULTS = {}
+
+_config['tune'] = False
 
 def train_model(config):
 
@@ -44,7 +46,7 @@ def train_model(config):
     with open('{}/data/{}.tokenized.pkl'.format(cwd, config["bert_type"]),
               'rb') as f:
         data = pickle.load(f)
-
+    print(data.keys())
     x_train, y_train, x_dev, y_dev = [], [], [], []
     for code in config["codes"]:
         x_train += data[code]["x_train"]
@@ -212,7 +214,11 @@ def train_model(config):
         "dev_weighted_recall" :_results["weighted avg"]["recall"],
         "dev_weighted_f1_score" :_results["weighted avg"]["f1-score"]}
 
-    trial_id = ray.tune.track.trial_id()
+    if config["tune"]:
+        trial_id = ray.tune.track.trial_id()
+    else:
+        trial_id = 1
+
 
     RESULTS[str(trial_id)] = logs
 
