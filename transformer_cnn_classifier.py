@@ -37,7 +37,7 @@ cwd = os.getcwd()
 
 RESULTS = {}
 
-_config['tune'] = False
+# _config['tune'] = False
 
 _config['gpus'] = tf.config.experimental.list_physical_devices('GPU')
 
@@ -225,7 +225,7 @@ def train_model(config):
     if config["tune"]:
         trial_id = ray.tune.track.trial_id()
     else:
-        trial_id = 1`
+        trial_id = 1
 
 
     RESULTS[str(trial_id)] = logs
