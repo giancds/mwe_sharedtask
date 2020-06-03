@@ -39,6 +39,8 @@ RESULTS = {}
 
 _config['tune'] = False
 
+_config['gpus'] = tf.config.experimental.list_physical_devices('GPU')
+
 def train_model(config):
 
     model_name = build_model_name(config)
@@ -91,114 +93,120 @@ def train_model(config):
     input_ids = tf.keras.layers.Input(shape=(max_len,), dtype=tf.int32)
     attention_mask = tf.keras.layers.Input(shape=(max_len,), dtype=tf.int32)
 
-    # embedding
-    transformer = TFAutoModel.from_pretrained(config["bert_type"])
-    transformer.trainable = False
+    with tf.device('/CPU:0'):
+        # embedding
+        transformer = TFAutoModel.from_pretrained(config["bert_type"])
+        transformer.trainable = False
 
-    out = transformer(
-        input_ids, attention_mask=attention_mask, training=False)[0]
+        out = transformer(
+            input_ids, attention_mask=attention_mask, training=False)[0]
 
-    for i, layer_size in enumerate(conv_config):
-        if i == 0:
-            out = tf.keras.layers.Conv1D(
-                layer_size,
-                config["strides"],
-                padding='same',
-                activation=config["conv_activation"],
-                strides=1,
-                input_shape=(None, x_train[0].shape[0], x_train[0].shape[1]))(out)
+    device = '/CPU:0'
+    if len(config['gpus'])> 0:
+        device = '/GPU:0'
+
+    with tf.device(device):
+        for i, layer_size in enumerate(conv_config):
+            if i == 0:
+                out = tf.keras.layers.Conv1D(
+                    layer_size,
+                    config["strides"],
+                    padding='same',
+                    activation=config["conv_activation"],
+                    strides=1,
+                    input_shape=(None, x_train[0].shape[0], x_train[0].shape[1]))(out)
+            else:
+                out = tf.keras.layers.Conv1D(
+                    layer_size,
+                    config["strides"],
+                    padding='same',
+                    activation=config["conv_activation"],
+                    strides=1)(out)
+            out = tf.keras.layers.Dropout(config["conv_dropout"])(out)
+
+        # Dense layers
+        for i, layer_size in enumerate(dense_config):
+            out = tf.keras.layers.Dense(
+                layer_size, activation=config["dense_activation"])(out)
+            out = tf.keras.layers.Dropout(config["dense_dropout"])(out)
+
+        if config["output_size"] == 1:
+            out = tf.keras.layers.Dense(1, activation='sigmoid')(out)
         else:
-            out = tf.keras.layers.Conv1D(
-                layer_size,
-                config["strides"],
-                padding='same',
-                activation=config["conv_activation"],
-                strides=1)(out)
-        out = tf.keras.layers.Dropout(config["conv_dropout"])(out)
+            out = tf.keras.layers.Dense(
+                2, activation=config["output_activation"])(out)
 
-    # Dense layers
-    for i, layer_size in enumerate(dense_config):
-        out = tf.keras.layers.Dense(
-            layer_size, activation=config["dense_activation"])(out)
-        out = tf.keras.layers.Dropout(config["dense_dropout"])(out)
+        model = tf.keras.Model(inputs=[input_ids, attention_mask], outputs=out)
 
-    if config["output_size"] == 1:
-        out = tf.keras.layers.Dense(1, activation='sigmoid')(out)
-    else:
-        out = tf.keras.layers.Dense(
-            2, activation=config["output_activation"])(out)
+        if config["optimizer"] == 'adam':
+            optimizer = tf.keras.optimizers.Adam
+        elif config["optimizer"] == 'rmsprop':
+            optimizer = tf.keras.optimizers.RMSprop
+        else:
+            optimizer = tf.keras.optimizers.SGD
 
-    model = tf.keras.Model(inputs=[input_ids, attention_mask], outputs=out)
+        # compiling model
+        model.compile(loss=config["loss_function"],
+                    optimizer=optimizer(learning_rate=config["learning_rate"],
+                                        clipnorm=config["clipnorm"]),
+                    metrics=["accuracy"])
 
-    if config["optimizer"] == 'adam':
-        optimizer = tf.keras.optimizers.Adam
-    elif config["optimizer"] == 'rmsprop':
-        optimizer = tf.keras.optimizers.RMSprop
-    else:
-        optimizer = tf.keras.optimizers.SGD
+        print(model.summary())
 
-    # compiling model
-    model.compile(loss=config["loss_function"],
-                  optimizer=optimizer(learning_rate=config["learning_rate"],
-                                      clipnorm=config["clipnorm"]),
-                  metrics=["accuracy"])
+        # do this check again vecause we need y_train to be 1-D for class weights
+        if config["output_size"] > 1:
+            y_train = tf.keras.utils.to_categorical(y_train)
+            y_val = tf.keras.utils.to_categorical(y_val)
 
-    print(model.summary())
+        checkpoint = tf.keras.callbacks.ModelCheckpoint(config["train_dir"] +
+                                                        model_name,
+                                                        save_best_only=True)
+        callbacks = [checkpoint]
 
-    # do this check again vecause we need y_train to be 1-D for class weights
-    if config["output_size"] > 1:
-        y_train = tf.keras.utils.to_categorical(y_train)
-        y_val = tf.keras.utils.to_categorical(y_val)
+        if config["tune"]:
+            callbacks.append(
+                MetricsReporterCallback(custom_validation_data=(x_val, y_val)))
 
-    checkpoint = tf.keras.callbacks.ModelCheckpoint(config["train_dir"] +
-                                                    model_name,
-                                                    save_best_only=True)
-    callbacks = [checkpoint]
+        if config["early_stop_patience"] > 0:
+            early_stop = tf.keras.callbacks.EarlyStopping(
+                monitor='loss',
+                min_delta=config["early_stop_delta"],
+                patience=config["early_stop_patience"])
+            callbacks.append(early_stop)
 
-    if config["tune"]:
-        callbacks.append(
-            MetricsReporterCallback(custom_validation_data=(x_val, y_val)))
+        if config["log_tensorboard"]:
+            tensorboard = tf.keras.callbacks.TensorBoard(
+                log_dir=config["train_dir"] + '/logs')
+            callbacks.append(tensorboard)
 
-    if config["early_stop_patience"] > 0:
-        early_stop = tf.keras.callbacks.EarlyStopping(
-            monitor='loss',
-            min_delta=config["early_stop_delta"],
-            patience=config["early_stop_patience"])
-        callbacks.append(early_stop)
+        def lr_scheduler(epoch, lr):     # pylint: disable=C0103
+            lr_decay = config["lr_decay"]**max(epoch - config["start_decay"], 0.0)
+            return lr * lr_decay
 
-    if config["log_tensorboard"]:
-        tensorboard = tf.keras.callbacks.TensorBoard(
-            log_dir=config["train_dir"] + '/logs')
-        callbacks.append(tensorboard)
+        if config["start_decay"] > 0:
+            lrate = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
+            callbacks.append(lrate)
 
-    def lr_scheduler(epoch, lr):     # pylint: disable=C0103
-        lr_decay = config["lr_decay"]**max(epoch - config["start_decay"], 0.0)
-        return lr * lr_decay
+        print(model.summary())
 
-    if config["start_decay"] > 0:
-        lrate = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
-        callbacks.append(lrate)
+        print('Train...')
+        model.fit(x_train,
+                y_train,
+                batch_size=config["batch_size"],
+                epochs=config["max_epochs"],
+                callbacks=callbacks,
+                verbose=2,
+                validation_data=(x_val, y_val))
 
-    print(model.summary())
-
-    print('Train...')
-    model.fit(x_train,
-              y_train,
-              batch_size=config["batch_size"],
-              epochs=config["max_epochs"],
-              callbacks=callbacks,
-              verbose=2,
-              validation_data=(x_val, y_val))
-
-    # #####
-    # Evaluation time
-    #
-    _results, y_pred = evaluate(
-        model,
-        test_data=(x_dev, y_dev),
-        perword=True,
-        seq_lens=seq_lens,
-        output_dict=True)
+        # #####
+        # Evaluation time
+        #
+        _results, y_pred = evaluate(
+            model,
+            test_data=(x_dev, y_dev),
+            perword=True,
+            seq_lens=seq_lens,
+            output_dict=True)
 
 
     logs = {
@@ -217,7 +225,7 @@ def train_model(config):
     if config["tune"]:
         trial_id = ray.tune.track.trial_id()
     else:
-        trial_id = 1
+        trial_id = 1`
 
 
     RESULTS[str(trial_id)] = logs
