@@ -211,6 +211,10 @@ def define_cnn_flags(flags, base_dir, train_dir):
                         os.path.join(base_dir, train_dir) + "/",
                         "Train directory")
 
+    flags.DEFINE_integer("linear_layer", 100,
+                      """Initial dense layer to reduce size of transfomer embedding.
+                       Set this parameter to 0 to disable """)
+
     flags.DEFINE_list(
         "conv_layers", [100, 100],
         """Dense layers. If nlayers and layer_size are > 0 than this

@@ -21,6 +21,7 @@ from transformers import AutoTokenizer, TFAutoModel
 from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
 
+
 SEED = 42
 BASE_DIR = os.path.expanduser("~")     # this will point to the user's home
 TRAIN_DIR = "ray_results"
@@ -40,6 +41,8 @@ RESULTS = {}
 # _config['tune'] = False
 
 _config['gpus'] = tf.config.experimental.list_physical_devices('GPU')
+if len(_config['gpus']) > 0:
+    tf.config.experimental.set_memory_growth(_config['gpus'][0], True)
 
 def train_model(config):
 
@@ -102,10 +105,15 @@ def train_model(config):
             input_ids, attention_mask=attention_mask, training=False)[0]
 
     device = '/CPU:0'
-    if len(config['gpus'])> 0:
+    if len(config['gpus']) > 0:
         device = '/GPU:0'
 
     with tf.device(device):
+
+        if config["linear_layer"] > 0:
+            out = tf.keras.layers.Dense(
+                config["linear_layer"], activation=None)(out)
+
         for i, layer_size in enumerate(conv_config):
             if i == 0:
                 out = tf.keras.layers.Conv1D(
@@ -231,7 +239,7 @@ def train_model(config):
     RESULTS[str(trial_id)] = logs
 
     output_count = -1
-    y_pred = y_pred.reshape(-1,).tolist()
+    y_pred = np.array(y_pred).reshape(-1,).tolist()
     for code in config["codes"]:
         with open('{}/data/{}/dev.cupt'.format(cwd, code), 'r') as dev:
             with open('{}/data/{}/dev.cupt'.format(cwd, code)) as test:
