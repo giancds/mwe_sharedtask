@@ -52,29 +52,54 @@ def train_model(config):
               'rb') as f:
         data = pickle.load(f)
     print(data.keys())
-    x_train, y_train, x_dev, y_dev = [], [], [], []
-    for code in config["codes"]:
-        x_train += data[code]["x_train"]
-        y_train += data[code]["y_train"]
+
+    x_train, y_train = [], []
+    x_dev, y_dev = [], []
+    for code in data.keys():
+
+        true_x, true_y = [], []
+        false_x, false_y = [], []
+        for xsample, ysample in zip(data[code]['x_train'], data[code]['y_train']):
+            if 1 in ysample:
+                true_x.append(xsample)
+                true_y.append(ysample)
+
+        maxlen = max([len(y) for y in true_y])
+        print(maxlen)
+
+        for xsample, ysample in zip(data[code]['x_train'], data[code]['y_train']):
+            if 1 not in ysample and len(ysample) < maxlen:
+                false_x.append(xsample)
+                false_y.append(ysample)
+        false_x = np.array(false_x)
+        false_y = np.array(false_y)
+
+        np.random.seed(SEED)
+        idx = np.random.randint(len(false_y), size=len(true_y))
+        false_x = false_x[idx].tolist()
+        false_y = false_y[idx].tolist()
+
+        x_train += true_x + false_x
+        y_train += true_y + false_y
 
         x_dev += data[code]["x_dev"]
         y_dev += data[code]["y_dev"]
 
-    del data
+    # del data
 
     x_train = tf.keras.preprocessing.sequence.pad_sequences(x_train)
     max_len = x_train.shape[1]
     y_train = tf.keras.preprocessing.sequence.pad_sequences(y_train, maxlen=max_len)
 
     x_train, x_val, y_train, y_val = train_test_split(x_train,
-                                                      y_train,
-                                                      test_size=0.15,
-                                                      random_state=SEED)
+                                                        y_train,
+                                                        test_size=0.15,
+                                                        random_state=SEED)
 
     print(x_train.shape, x_train.shape, y_train.shape)
+    print(x_val.shape, x_val.shape, y_val.shape)
     x_train = [x_train, (x_train > 0).astype(int)]
     x_val = [x_val, (x_val > 0).astype(int)]
-
 
 
     x_dev = tf.keras.preprocessing.sequence.pad_sequences(x_dev, maxlen=max_len)
