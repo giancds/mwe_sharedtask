@@ -93,9 +93,9 @@ criterion = nn.BCELoss()
 def process_function(engine, batch):
     x, m, y = batch.sentence, batch.mask, batch.labels
     x = transformer(x, attention_mask=m)[0].transpose(1, 2)
-    x.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    x = x.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
     y = torch.tensor(to_categorical(y))
-    y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    y = y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
     model.train()
     optimizer.zero_grad()
     y_pred = model(x)
@@ -108,9 +108,9 @@ def process_function(engine, batch):
 def eval_function(engine, batch):
     x, m, y = batch.sentence, batch.mask, batch.labels
     x = transformer(x, attention_mask=m)[0].transpose(1, 2)
-    x.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    x = x.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
     y = torch.tensor(to_categorical(y))
-    y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    y = y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
     model.eval()
     with torch.no_grad():
         y_pred = model(x)
