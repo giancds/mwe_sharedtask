@@ -24,8 +24,7 @@ from utils import build_model_name, convert_flags_to_dict, define_cnn_flags
 
 from transformers import AutoModel
 
-from keras.utils import to_categorical
-
+from tensorflow.keras.utils import to_categorical
 
 ####
 
@@ -94,10 +93,13 @@ criterion = nn.BCELoss()
 def process_function(engine, batch):
     x, m, y = batch.sentence, batch.mask, batch.labels
     x = transformer(x, attention_mask=m)[0].transpose(1, 2)
+    x.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    y = torch.tensor(to_categorical(y))
+    y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
     model.train()
     optimizer.zero_grad()
     y_pred = model(x)
-    loss = criterion(y_pred, torch.tensor(to_categorical(y)))
+    loss = criterion(y_pred, y)
     loss.backward()
     optimizer.step()
     return loss.item()
@@ -106,6 +108,9 @@ def process_function(engine, batch):
 def eval_function(engine, batch):
     x, m, y = batch.sentence, batch.mask, batch.labels
     x = transformer(x, attention_mask=m)[0].transpose(1, 2)
+    x.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    y = torch.tensor(to_categorical(y))
+    y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
     model.eval()
     with torch.no_grad():
         y_pred = model(x)
