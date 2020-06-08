@@ -2,8 +2,23 @@ import os
 import pickle
 
 import numpy as np
+import torch
 from torchtext.data import Dataset, Field, Example
+from torchtext.data.iterator import BucketIterator
 from sklearn.model_selection import train_test_split
+from tensorflow.keras.utils import to_categorical
+
+
+class SkorchBucketIterator(BucketIterator):
+    def __iter__(self):
+        for batch in super().__iter__():
+            # We make a small modification: Instead of just returning batch
+            # we return batch.text and batch.label, corresponding to X and y
+            y =  batch.labels.to('cpu')
+            y = to_categorical(y)
+            y = torch.tensor(y).to(self.device)
+            batch.labels = y
+            yield batch.sentence, batch.mask, batch.labels
 
 
 class SentenceDataset(Dataset):

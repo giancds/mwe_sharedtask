@@ -1,4 +1,5 @@
 #pylint: disable=invalid-name
+
 import os
 import pickle
 import numpy as np
@@ -11,7 +12,6 @@ from torchtext.data import BucketIterator
 from sklearn.utils import class_weight
 from sklearn.metrics import confusion_matrix, classification_report
 
-from torchtext.data.iterator import BucketIterator
 
 from ignite.engine import Engine, Events
 from ignite.metrics import Accuracy, Loss, RunningAverage
@@ -19,12 +19,11 @@ from ignite.handlers import ModelCheckpoint, EarlyStopping
 from ignite.contrib.handlers import ProgressBar
 
 from models import CNNClassifier
-from preprocess import load_tokenized_data, SentenceDataset
+from preprocess import load_tokenized_data, SentenceDataset, SkorchBucketIterator
 from utils import build_model_name, convert_flags_to_dict, define_cnn_flags
 
 from transformers import AutoModel
 
-from tensorflow.keras.utils import to_categorical
 
 ####
 
@@ -37,40 +36,35 @@ torch.backends.cudnn.benchmark = False
 
 ####
 bert_type = 'distilbert-base-multilingual-cased'
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')   # pylint: disable=no-member
 
 (x_train, y_train), (x_val, y_val), (x_dev, y_dev) = load_tokenized_data(
     datafile='{}/data/{}.tokenized.pkl'.format(os.getcwd(), bert_type),
     language_codes=['DE', 'GA', 'HI', 'PT', 'ZH'],
     seed=SEED)
 
-train_iterator = BucketIterator(
+train_iterator = SkorchBucketIterator(
     dataset=SentenceDataset(data=(x_train, y_train)),
     batch_size=32,
     sort_key=lambda x: len(x.sentence),
     shuffle=False,
-    device=torch.device("cpu"))  # pylint: disable=no-member
-
-valid_iterator = BucketIterator(
+    device=DEVICE)
+valid_iterator = SkorchBucketIterator(
     dataset=SentenceDataset(data=(x_val, y_val)),
     batch_size=32,
     sort_key=lambda x: len(x.sentence),
     shuffle=False,
-    device=torch.device("cpu"))  # pylint: disable=no-member
+    device=DEVICE)
 
-test_iterator = BucketIterator(
+test_iterator = SkorchBucketIterator(
     dataset=SentenceDataset(data=(x_dev, y_dev)),
     batch_size=32,
     sort_key=lambda x: len(x.sentence),
     shuffle=False,
-    device=torch.device("cpu"))  # pylint: disable=no-member
+    device=DEVICE)
 
 #####
 transformer = AutoModel.from_pretrained(bert_type)
-for param in transformer.parameters():
-    param.requires_grad = False
-
-transformer.to(torch.device("cpu"))  # pylint: disable=no-member
-
 #####
 
 config = {
@@ -79,12 +73,12 @@ config = {
     'pool_stride': 3,
     'dropout': 0.2,
     'output_activation': 'sigmoid',
-    'emb_dim': transformer.embeddings.word_embeddings.embedding_dim,
-
+    'bert': transformer
 }
 
 model = CNNClassifier(config)
-model.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))   # pylint: disable=no-member
+model.to(DEVICE)   # pylint: disable=no-member
+model.freeze_transformer()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-3)
 criterion = nn.BCELoss()
@@ -93,9 +87,6 @@ criterion = nn.BCELoss()
 def process_function(engine, batch):
     x, m, y = batch.sentence, batch.mask, batch.labels
     x = transformer(x, attention_mask=m)[0].transpose(1, 2)
-    x = x.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
-    y = torch.tensor(to_categorical(y))
-    y = y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
     model.train()
     optimizer.zero_grad()
     y_pred = model(x)
@@ -108,9 +99,6 @@ def process_function(engine, batch):
 def eval_function(engine, batch):
     x, m, y = batch.sentence, batch.mask, batch.labels
     x = transformer(x, attention_mask=m)[0].transpose(1, 2)
-    x = x.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
-    y = torch.tensor(to_categorical(y))
-    y = y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
     model.eval()
     with torch.no_grad():
         y_pred = model(x)
