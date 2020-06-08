@@ -85,7 +85,7 @@ criterion = nn.BCELoss()
 
 
 def process_function(engine, batch):
-    x, m, y = batch.sentence, batch.mask, batch.labels
+    x, m, y = batch
     x = transformer(x, attention_mask=m)[0].transpose(1, 2)
     model.train()
     optimizer.zero_grad()
@@ -97,7 +97,7 @@ def process_function(engine, batch):
 
 
 def eval_function(engine, batch):
-    x, m, y = batch.sentence, batch.mask, batch.labels
+    x, m, y = batch
     x = transformer(x, attention_mask=m)[0].transpose(1, 2)
     model.eval()
     with torch.no_grad():
