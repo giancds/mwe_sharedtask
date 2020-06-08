@@ -34,7 +34,7 @@ class CNNClassifier(nn.Module):
             param.requires_grad = False
 
     def forward(self, x, mask):
-        x = self.transformer(x, attention_mask=mask)[0].transpose(1,2)
+        x = self.transformer(x, attention_mask=mask)[0].transpose(1, 2)
         seq_len = x.shape[-1]
         #
         x = [F.relu(conv(x)).transpose(1, 2) for conv in self.convolutions]
