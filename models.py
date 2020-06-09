@@ -10,6 +10,8 @@ class CNNClassifier(nn.Module):
     def __init__(self, config):
         super(CNNClassifier, self).__init__()
 
+        self.transformer_device = config["transformer_device"]
+        self.model_device = config["transformer_device"]
         self.transformer = config["bert"]
 
         self.convolutions = nn.ModuleList([
@@ -29,13 +31,26 @@ class CNNClassifier(nn.Module):
                                   if config["output_activation"] == 'sigmoid'
                                   else F.softmax)
 
+    def to(self, *args, **kwargs):
+        self = super().to(*args, **kwargs)
+        self.transformer = self.transformer.to(
+            torch.device(self.transformer_device))
+        self.model_device = next(self.fully_connected.parameters()).device.type
+        return self
+
     def freeze_transformer(self):
         for param in self.transformer.parameters():
             param.requires_grad = False
 
-    def forward(self, x, mask):
-        x = self.transformer(x, attention_mask=mask)[0].transpose(1, 2)
+    def unfreeze_transformer(self):
+        for param in self.transformer.parameters():
+            param.requires_grad = True
+
+    def forward(self, x):
+        x = self.transformer(x, attention_mask=(x > 0).int())[0].transpose(1, 2)
         seq_len = x.shape[-1]
+        if self.transformer_device != self.model_device:
+            x = x.to(self.model_device)
         #
         x = [F.relu(conv(x)).transpose(1, 2) for conv in self.convolutions]
         x = [nn.functional.pad(i, (0, 0, 0, seq_len - i.shape[1])) for i in x]

@@ -48,20 +48,21 @@ train_iterator = SkorchBucketIterator(
     batch_size=32,
     sort_key=lambda x: len(x.sentence),
     shuffle=False,
-    device=DEVICE)
+    device='cpu')
+
 valid_iterator = SkorchBucketIterator(
     dataset=SentenceDataset(data=(x_val, y_val)),
     batch_size=32,
     sort_key=lambda x: len(x.sentence),
     shuffle=False,
-    device=DEVICE)
+    device='cpu')
 
 test_iterator = SkorchBucketIterator(
     dataset=SentenceDataset(data=(x_dev, y_dev)),
-    batch_size=32,
+    batch_size=1,
     sort_key=lambda x: len(x.sentence),
     shuffle=False,
-    device=DEVICE)
+    device='cpu')
 
 #####
 transformer = AutoModel.from_pretrained(bert_type)
@@ -73,6 +74,7 @@ config = {
     'pool_stride': 3,
     'dropout': 0.2,
     'output_activation': 'sigmoid',
+    'transformer_device': 'cpu',
     'bert': transformer
 }
 

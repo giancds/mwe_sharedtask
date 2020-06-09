@@ -15,22 +15,25 @@ class SkorchBucketIterator(BucketIterator):
             # We make a small modification: Instead of just returning batch
             # we return batch.text and batch.label, corresponding to X and y
             y =  batch.labels.to('cpu')
-            y = to_categorical(y)
+            y = to_categorical(y)[:, :, 1:]
             y = torch.tensor(y).to(self.device)
             batch.labels = y
-            yield batch.sentence, batch.mask, batch.labels
+            yield batch.sentence, batch.labels
 
 
 class SentenceDataset(Dataset):
 
-    def __init__(self, data, **kwargs):
+    def __init__(self, data, min_len=5, **kwargs):
+        self.min_len = min_len
         text_field = Field(use_vocab=False, pad_token=0, batch_first=True)
         label_field = Field(use_vocab=False, pad_token=0, batch_first=True)
-        fields = [("sentence", text_field), ("mask", text_field), ("labels", label_field)]
+        fields = [("sentence", text_field), ("labels", label_field)]
         examples = []
         for (x, y) in zip(data[0], data[1]):
-            m = (np.array(x) > 0).astype(int).tolist()
-            examples.append(Example.fromlist([x, m, y], fields))
+            if len(x) < self.min_len:  # pad all sequences shorter than this
+                x += [0] * (5 - len(x))
+                y += [0] * (5 - len(x))
+            examples.append(Example.fromlist([x, y], fields))
         super().__init__(examples, fields, **kwargs)
 
 
@@ -79,6 +82,12 @@ def load_tokenized_data(datafile, language_codes, val_size=0.15, seed=42):
         test_size=val_size,
         random_state=seed)
 
+
+    y_train = [[1 if i == 0 else 2 for i in y] for y in y_train]
+    y_val = [[1 if i == 0 else 2 for i in y] for y in y_val]
+    y_dev = [[1 if i == 0 else 2 for i in y] for y in y_dev]
+
+
     return (x_train, y_train),( x_val, y_val), (x_dev, y_dev)
 
 def load_and_tokenize_dataset(train_files, tokenizer, train=True):
@@ -115,7 +124,7 @@ def load_and_tokenize_dataset(train_files, tokenizer, train=True):
                     tmp_label = []
                 elif not line.startswith('#'):
                     feats = line.split()
-                    _label = 0 if feats[10] is '*' else 1
+                    _label = 0 if feats[10] == '*' else 1
                     tokens = tokenizer.encode(feats[1])
                     tokens = tokens[1:-1]
                     _label = [_label] * len(tokens)
