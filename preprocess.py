@@ -9,40 +9,13 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 
 
-class SkorchBucketIterator(BucketIterator):
-    def __iter__(self):
-        for batch in super().__iter__():
-            # We make a small modification: Instead of just returning batch
-            # we return batch.text and batch.label, corresponding to X and y
-            y =  batch.labels.to('cpu')
-            y = to_categorical(y)[:, :, 1:]
-            y = torch.tensor(y).to(self.device)
-            batch.labels = y
-            yield batch.sentence, batch.labels
-
-
-class SentenceDataset(Dataset):
-
-    def __init__(self, data, min_len=5, **kwargs):
-        self.min_len = min_len
-        text_field = Field(use_vocab=False, pad_token=0, batch_first=True)
-        label_field = Field(use_vocab=False, pad_token=0, batch_first=True)
-        fields = [("sentence", text_field), ("labels", label_field)]
-        examples = []
-        for (x, y) in zip(data[0], data[1]):
-            if len(x) < self.min_len:  # pad all sequences shorter than this
-                x += [0] * (5 - len(x))
-                y += [0] * (5 - len(x))
-            examples.append(Example.fromlist([x, y], fields))
-        super().__init__(examples, fields, **kwargs)
-
 
 def load_tokenized_data(datafile, language_codes, val_size=0.15, seed=42):
 
     with open(datafile, 'rb') as f:
         data = pickle.load(f)
     x_train, y_train = [], []
-    x_dev, y_dev = [], []
+    x_dev, y_dev = {}, {}
     for code in language_codes:
 
         true_x, true_y = [], []
@@ -71,8 +44,8 @@ def load_tokenized_data(datafile, language_codes, val_size=0.15, seed=42):
         x_train += true_x + false_x
         y_train += true_y + false_y
 
-        x_dev += data[code]["x_dev"]
-        y_dev += data[code]["y_dev"]
+        x_dev[code] = data[code]["x_dev"]
+        y_dev[code] = data[code]["y_dev"]
 
     del data
 
@@ -81,12 +54,6 @@ def load_tokenized_data(datafile, language_codes, val_size=0.15, seed=42):
         y_train,
         test_size=val_size,
         random_state=seed)
-
-
-    y_train = [[1 if i == 0 else 2 for i in y] for y in y_train]
-    y_val = [[1 if i == 0 else 2 for i in y] for y in y_val]
-    y_dev = [[1 if i == 0 else 2 for i in y] for y in y_dev]
-
 
     return (x_train, y_train),( x_val, y_val), (x_dev, y_dev)
 

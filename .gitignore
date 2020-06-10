@@ -7,3 +7,6 @@ data/
 *.sh
 .ipynb_checkpoints
 .DS_Store
+scripts/
+*.json
+*.pt

@@ -1,10 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import AutoModel
 
-from tensorflow.keras.utils import to_categorical
-
+from sklearn.metrics import f1_score
+from skorch import NeuralNetClassifier
 
 class CNNClassifier(nn.Module):
     def __init__(self, config):
@@ -47,8 +46,14 @@ class CNNClassifier(nn.Module):
             param.requires_grad = True
 
     def forward(self, x):
-        x = self.transformer(x, attention_mask=(x > 0).int())[0].transpose(1, 2)
+        m = (x > 0).int()
+        x = self.transformer(x, attention_mask=m)[0]
+        #
+        x = x * m.unsqueeze(2)
+        x = torch.where(x > 0, x, torch.tensor(-1.0))
+        x = x.transpose(1, 2)
         seq_len = x.shape[-1]
+        #
         if self.transformer_device != self.model_device:
             x = x.to(self.model_device)
         #
@@ -58,4 +63,5 @@ class CNNClassifier(nn.Module):
         x = torch.cat(x, dim=2)  # pylint: disable=no-member
         x = self.fully_connected(x)
         x = self.dropout(x)
+
         return self.output_activation(x)
