@@ -81,6 +81,11 @@ parser.add_argument(
     default=32,
     help='training batch size')
 parser.add_argument(
+    '--eval_batch_size',
+    type=int,
+    default=32,
+    help='validation/evaluation batch size')
+parser.add_argument(
     '--max_epochs',
     type=int,
     default=100,
@@ -138,7 +143,7 @@ net = IdiomClassifier(
     iterator_train__one_hot=args.output_activation == 'softmax',
      #
     iterator_valid=SkorchBucketIterator,
-    iterator_valid__batch_size=1,
+    iterator_valid__batch_size=args.eval_batch_size,
     iterator_valid__sort_key=lambda x: len(x.sentence),
     iterator_valid__shuffle=True,
     iterator_valid__device=DEVICE,
@@ -172,7 +177,7 @@ if args.eval:
         print('#' * 20)
         test_iterator = SkorchBucketIterator(
             dataset=SentenceDataset(data=(x_dev[code], y_dev[code])),
-            batch_size=1,
+            batch_size=args.eval_batch_size,
             sort=False,
             sort_key=lambda x: len(x.sentence),
             shuffle=False,
