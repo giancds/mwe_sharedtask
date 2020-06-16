@@ -2,14 +2,15 @@ import os
 import pickle
 
 import numpy as np
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 
 
-def load_tokenized_data(datafile, language_codes, val_size=0.15, seed=42):
+def load_tokenized_data(datafile, language_codes, percent=0.15, seed=42):
 
     with open(datafile, 'rb') as f:
         data = pickle.load(f)
     x_train, y_train = [], []
+    x_val, y_val = [], []
     x_dev, y_dev = {}, {}
     for code in language_codes:
 
@@ -22,33 +23,28 @@ def load_tokenized_data(datafile, language_codes, val_size=0.15, seed=42):
 
 
         max_len = max([len(y) for y in true_y])
-        # print(max_len)
-
         for xsample, ysample in zip(data[code]['x_train'], data[code]['y_train']):
             if 1 not in ysample and len(ysample) < max_len:
                 false_x.append(xsample)
                 false_y.append(ysample)
+
         false_x = np.array(false_x)
         false_y = np.array(false_y)
 
         np.random.seed(seed)
-        idx = np.random.randint(len(false_y), size=len(true_y))
+        idx = np.random.randint(len(false_y), size=int(percent * len(true_y)))
         false_x = false_x[idx].tolist()
         false_y = false_y[idx].tolist()
 
         x_train += true_x + false_x
         y_train += true_y + false_y
+        x_val += data[code]["x_dev"]
+        y_val += data[code]["y_dev"]
 
         x_dev[code] = data[code]["x_dev"]
         y_dev[code] = data[code]["y_dev"]
 
     del data
-
-    x_train, x_val, y_train, y_val = train_test_split(
-        x_train,
-        y_train,
-        test_size=val_size,
-        random_state=seed)
 
     return (x_train, y_train),( x_val, y_val), (x_dev, y_dev)
 

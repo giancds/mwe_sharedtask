@@ -131,6 +131,19 @@ model.to(DEVICE)     # pylint: disable=no-member
 model.freeze_transformer()
 
 #####
+
+progress_bar = ProgressBar(batches_per_epoch=len(x_train) // args.batch_size + 1)
+scorer = CustomScorer(scoring=None, name="F1", lower_is_better=False, use_caching=False)
+early_stopping =  EarlyStopping(monitor='F1', patience=20, lower_is_better=False)
+checkpoint = Checkpoint(
+    monitor='F1',
+    dirname=args.train_dir,
+    f_params='{}.params.pt'.format(model_name),
+    f_optimizer='{}.optimizer.pt'.format(model_name),
+    f_history='{}.history.json'.format(model_name))
+
+######
+
 net = IdiomClassifier(
     module=model,
     class_weights=class_weights,
@@ -152,24 +165,16 @@ net = IdiomClassifier(
     train_split=predefined_split(SentenceDataset(data=(x_val, y_val))),
     optimizer=torch.optim.Adam,
     criterion=nn.BCELoss,
-    callbacks=[
-        ProgressBar(batches_per_epoch=len(x_train) // args.batch_size + 1),
-        CustomScorer(scoring=None, lower_is_better=False, use_caching=False),
-        EarlyStopping(monitor='score_best', patience=20),
-        Checkpoint(
-            monitor='score_best',
-            dirname=args.train_dir,
-            f_params='{}{}.params.pt'.format(args.train_dir, model_name),
-            f_optimizer='{}{}.optimizer.pt'.format(args.train_dir, model_name),
-            f_history='{}{}_history.json'.format(args.train_dir, model_name))
-            # f_pickle='{}{}.model.pkl'.format(args.train_dir, model_name))
-    ],
+    callbacks=[progress_bar, scorer, early_stopping, checkpoint],
     device=DEVICE,
 )
 
-
 net.fit(SentenceDataset(data=(x_train, y_train)), y=None, epochs=args.max_epochs)
 
+######
+
+net.initialize()
+net.load_params(checkpoint=checkpoint)
 if args.eval:
     for code in LANGUAGE_CODES:
         print('#' * 20)
