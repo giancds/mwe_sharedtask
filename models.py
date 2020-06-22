@@ -1,3 +1,9 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from sklearn.metrics import f1_score
+from skorch import NeuralNetClassifier
 class CNNClassifier(nn.Module):
     def __init__(self, config, transformer, transformer_device):
         super(CNNClassifier, self).__init__()
@@ -214,6 +220,7 @@ class CNNRNNClassifier(nn.Module):
         pass
         # self.fully_connected.bias.data.fill_(0)
         # self.fully_connected.weight.data.uniform_(-initrange, initrange)
+
 
 
 

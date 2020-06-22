@@ -21,9 +21,11 @@ from tensorflow.keras.utils import to_categorical
 
 from transformers import AutoModel, AutoTokenizer
 
+from models import CNNRNNClassifier
 from preprocess import load_tokenized_data
 from skorch_custom import SkorchBucketIterator, CustomScorer, IdiomClassifier, SentenceDataset
 from evaluation import evaluate_model
+from utils import build_model_name
 
 SEED = 42
 np.random.seed(SEED)
@@ -35,7 +37,7 @@ torch.backends.cudnn.benchmark = False
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')     # pylint: disable=no-member
 LANGUAGE_CODES = ['DE', 'GA', 'HI', 'PT', 'ZH']
 CWD = os.getcwd()
-BASE_DIR = ''     # this will point to the user's home
+BASE_DIR = os.path.expanduser("~")      # this will point to the user's home
 TRAIN_DIR = "transformer/cnn-rnn"
 
 
@@ -133,7 +135,7 @@ transformer_device = torch.device(
 # transformer_device
 
 (x_train, y_train), (x_val, y_val), (x_dev, y_dev) = load_tokenized_data(
-    datafile='/content/gdrive/My Drive/mwe_sharedtask/data/{}.tokenized.pkl'.format(args.bert_type),
+    datafile='data/{}.tokenized.pkl'.format(args.bert_type),
     language_codes=LANGUAGE_CODES,
     seed=SEED)
 
@@ -207,7 +209,7 @@ if args.eval:
             train=False,
             one_hot=args.output_activation == 'softmax',
             device=DEVICE)
-        args.dev_file = '/content/gdrive/My Drive/mwe_sharedtask/data/{}/dev.cupt'.format(code)
+        args.dev_file = 'data/{}/dev.cupt'.format(code)
         evaluate_model(net, test_iterator, tokenizer, args)
 
 print("#" * 20)
