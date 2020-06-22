@@ -78,7 +78,7 @@ class IdiomClassifier(skorch.NeuralNetClassifier):
                         torch.tensor(self.class_weights[1]).to(self.device).float(),
                         torch.tensor(-1.0).to(self.device)))
         loss = (loss * weights.view(-1))
-        mask = (y_true >= 0).int()
+        mask = (y_true >= 0).float()
         loss = (loss * mask.view(-1)).mean()
         return loss
 

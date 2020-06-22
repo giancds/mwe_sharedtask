@@ -126,7 +126,7 @@ for percent in selected_percents:
         seed=SEED)
 
     print('\nTraining for percent {:2f}'.format(percent))
-    print('Data sie: {}\n'.format(len(x_train)))
+    print('Data size: {}\n'.format(len(x_train)))
 
     targets = np.concatenate(y_train).reshape(-1)
     class_weights = compute_class_weight(class_weight='balanced',
