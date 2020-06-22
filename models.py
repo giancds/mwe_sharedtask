@@ -208,18 +208,20 @@ class CNNRNNClassifier(nn.Module):
         return self.output_activation(x).squeeze()
 
     def init_weights(self, initrange):
-        # for names in self.lstm._all_weights:
-        #     for name in filter(lambda n: "bias" in n, names):
-        #         bias = getattr(self.lstm, name)
-        #         n = bias.size(0)
-        #         start, end = n//4, n//2
-        #         bias.data[start:end].fill_(1.)
-        #     for name in filter(lambda n: "weight" in n,  names):
-        #         weight = getattr(self.lstm, name)
-        #         weight.data.uniform_(-initrange, initrange)
-        pass
-        # self.fully_connected.bias.data.fill_(0)
-        # self.fully_connected.weight.data.uniform_(-initrange, initrange)
+        for conv in self.convolutions:
+            conv.weight.data.uniform_(-initrange, initrange)
+            conv.bias.data.fill_(0)
+        for names in self.lstm._all_weights:
+            for name in filter(lambda n: "bias" in n, names):
+                bias = getattr(self.lstm, name)
+                n = bias.size(0)
+                start, end = n//4, n//2
+                bias.data[start:end].fill_(1.)
+            for name in filter(lambda n: "weight" in n,  names):
+                weight = getattr(self.lstm, name)
+                weight.data.uniform_(-initrange, initrange)
+        self.fully_connected.weight.data.uniform_(-initrange, initrange)
+        self.fully_connected.bias.data.fill_(0)
 
 
 
