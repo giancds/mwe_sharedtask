@@ -1,10 +1,3 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-from sklearn.metrics import f1_score
-from skorch import NeuralNetClassifier
-
 class CNNClassifier(nn.Module):
     def __init__(self, config, transformer, transformer_device):
         super(CNNClassifier, self).__init__()
@@ -64,8 +57,6 @@ class CNNClassifier(nn.Module):
         x = self.dropout(x)
 
         return self.output_activation(x).squeeze()
-
-
 
 class RNNClassifier(nn.Module):
     def __init__(self, config, transformer, transformer_device):
@@ -138,9 +129,9 @@ class RNNClassifier(nn.Module):
         self.fully_connected.weight.data.uniform_(-initrange, initrange)
 
 
-class RNNCNNClassifier(nn.Module):
+class CNNRNNClassifier(nn.Module):
     def __init__(self, config, transformer, transformer_device):
-        super(RNNClassifier, self).__init__()
+        super(CNNRNNClassifier, self).__init__()
 
         self.transformer_device = transformer_device
         self.model_device = transformer_device
@@ -211,16 +202,18 @@ class RNNCNNClassifier(nn.Module):
         return self.output_activation(x).squeeze()
 
     def init_weights(self, initrange):
-        for names in self.lstm._all_weights:
-            for name in filter(lambda n: "bias" in n, names):
-                bias = getattr(self.lstm, name)
-                n = bias.size(0)
-                start, end = n//4, n//2
-                bias.data[start:end].fill_(1.)
-            for name in filter(lambda n: "weight" in n,  names):
-                weight = getattr(self.lstm, name)
-                weight.data.uniform_(-initrange, initrange)
-
+        # for names in self.lstm._all_weights:
+        #     for name in filter(lambda n: "bias" in n, names):
+        #         bias = getattr(self.lstm, name)
+        #         n = bias.size(0)
+        #         start, end = n//4, n//2
+        #         bias.data[start:end].fill_(1.)
+        #     for name in filter(lambda n: "weight" in n,  names):
+        #         weight = getattr(self.lstm, name)
+        #         weight.data.uniform_(-initrange, initrange)
+        pass
         # self.fully_connected.bias.data.fill_(0)
         # self.fully_connected.weight.data.uniform_(-initrange, initrange)
+
+
 

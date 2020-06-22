@@ -1,10 +1,3 @@
-import torch
-import skorch
-from sklearn.metrics import f1_score, classification_report, confusion_matrix
-from torchtext.data import Dataset, Field, Example, BucketIterator
-from tensorflow.keras.utils import to_categorical
-
-
 class SkorchBucketIterator(BucketIterator):
 
     def __init__(self,
@@ -78,7 +71,7 @@ class IdiomClassifier(skorch.NeuralNetClassifier):
                         torch.tensor(self.class_weights[1]).to(self.device).float(),
                         torch.tensor(-1.0).to(self.device)))
         loss = (loss * weights.view(-1))
-        mask = (y_true >= 0).float()
+        mask = (y_true >= 0).int()
         loss = (loss * mask.view(-1)).mean()
         return loss
 
