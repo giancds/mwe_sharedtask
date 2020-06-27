@@ -185,22 +185,22 @@ for percent in selected_percents:
 
     net.initialize()
     net.load_params(checkpoint=checkpoint)
-    if args.eval:
-        for code in LANGUAGE_CODES:
-            print('#' * 20)
-            print('# Evaluating Language: {}'.format(code))
-            print('#' * 20)
-            test_iterator = SkorchBucketIterator(
-                dataset=SentenceDataset(data=(x_dev[code], y_dev[code])),
-                batch_size=args.eval_batch_size,
-                sort=False,
-                sort_key=lambda x: len(x.sentence),
-                shuffle=False,
-                train=False,
-                one_hot=args.output_activation == 'softmax',
-                device=DEVICE)
-            args.dev_file = '{}/data/{}/dev.cupt'.format(CWD, code)
-            evaluate_model(net, test_iterator, tokenizer, args)
+    # if args.eval:
+    for code in LANGUAGE_CODES:
+        print('#' * 20)
+        print('# Evaluating Language: {}'.format(code))
+        print('#' * 20)
+        test_iterator = SkorchBucketIterator(
+            dataset=SentenceDataset(data=(x_dev[code], y_dev[code])),
+            batch_size=args.eval_batch_size,
+            sort=False,
+            sort_key=lambda x: len(x.sentence),
+            shuffle=False,
+            train=False,
+            one_hot=args.output_activation == 'softmax',
+            device=DEVICE)
+        args.dev_file = '{}/data/{}/dev.cupt'.format(CWD, code)
+        evaluate_model(net, test_iterator, tokenizer, args)
 
     print("#" * 10)
     print("\nTraining finished!!!")

@@ -1,5 +1,17 @@
 from eval_scripts.evaluate import Main
 
+ID_LABELS = {
+    0: 'none',
+    1: 'IAV',
+    2: 'IRV',
+    3: 'LVC.cause',
+    4: 'LVC.full',
+    5: 'MVC',
+    6: 'VID',
+    7: 'VPC.full',
+    8: 'VPC.semi',
+}
+
 def evaluate_model(net, test_iterator, tokenizer, args):
     preds = []
     sents = []
@@ -44,16 +56,79 @@ def evaluate_model(net, test_iterator, tokenizer, args):
 
     output_count = 0
     with open(args.dev_file, 'r') as dev:
-        with open(args.dev_file.replace('dev.cupt', 'system.cupt'), 'w') as test:
+        with open(args.dev_file.replace('dev.cupt', 'temp.cupt'), 'w') as test:
             for line in dev:
                 feats = line.split()
-                if not line.startswith('#') and line is not '\n' and '-' not in feats[0]:
-                    test.write(line.replace('*', str(preds[output_count])))
+                if not line.startswith('#') and line != '\n' and '-' not in feats[0]:
+                    prediction = preds[output_count]
+                    if prediction == 0:
+                        label = '*'
+                    else:
+                        # label = ID_LABELS.get(prediction, '*')
+                        label = 1
+                    new_line = '\t'.join(
+                        [str(f) for f in feats[0:-1]] + [str(label)] + ['\n'])
+                    test.write(new_line)
                     output_count += 1
                 else:
                     test.write(line)
 
-    _run_sript(args)
+    # post-process the file to get the predictions into cupt format
+    with open(args.dev_file.replace('dev.cupt', 'temp.cupt'), 'r') as temp:
+        with open(args.dev_file.replace('dev.cupt', 'system.cupt'), 'w') as test:
+            current_prediction = [1, None]
+            verb_found = False
+            for line in temp:
+                feats = line.split('\t')
+                if not line.startswith('#') and line != '\n' and '-' not in feats[0]:
+
+                    if feats[10] == '*':
+                        test.write(line)
+                        # print(line)
+                    else:
+
+                        if current_prediction[1] is None:
+
+                            # label = '{}:{}'.format(current_prediction[0], feats[10])
+                            label = str(current_prediction[0])
+                            verb_found = True if feats[3] == 'VERB' else False
+                            current_prediction[1] = feats[10]
+
+                        else:
+
+                            if feats[10] == current_prediction[1]:
+
+                                if verb_found and feats[3] != 'VERB':
+                                    label = current_prediction[0]
+
+                                elif verb_found and feats[3] == 'VERB':
+                                    current_prediction[0] = current_prediction[0] + 1
+                                    current_prediction[1] = feats[10]
+                                    # label = '{}:{}'.format(current_prediction[0], feats[10])
+                                    label = str(current_prediction[0])
+
+                                elif not verb_found:
+                                    label = current_prediction[0]
+                                    verb_found = True if feats[3] == 'VERB' else False
+
+                            else:
+                                current_prediction[0] = current_prediction[0] + 1
+                                current_prediction[1] = feats[10]
+                                # label = '{}:{}'.format(current_prediction[0], feats[10])
+                                label = str(current_prediction[0])
+                                verb_found = True if feats[3] == 'VERB' else False
+                        new_line = '\t'.join(feats[0:-2] + [str(label)] + ['\n'])
+                        test.write(new_line)
+                        # print(new_line)
+                else:
+                    if line == '\n':
+                        current_prediction = [1, None]
+                        verb_found = False
+                    test.write(line)
+                    # print(line)
+
+    if args.eval:
+        _run_sript(args)
 
 def _run_sript(args):
 
@@ -62,5 +137,6 @@ def _run_sript(args):
     args.gold_file = open(args.dev_file, 'r')
     args.prediction_file = open(args.dev_file.replace('dev.cupt', 'system.cupt'), 'r')
     args.train_file = open(args.dev_file.replace('dev.cupt', 'train.cupt'), 'r')
-
+    args.debug = False
+    print('\n\nRunning shared-task eval script\n\n')
     Main(args).run()

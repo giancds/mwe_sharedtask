@@ -4,8 +4,20 @@ import pickle
 import numpy as np
 # from sklearn.model_selection import train_test_split
 
+features = {
+    'none': 0,
+    'IAV': 1,
+    'IRV': 2,
+    'LVC.cause': 3,
+    'LVC.full': 4,
+    'MVC': 5,
+    'VID': 6,
+    'VPC.full': 7,
+    'VPC.semi': 8,
+}
 
-def load_tokenized_data(datafile, language_codes, percent=0.15, seed=42):
+
+def load_tokenized_data(datafile, language_codes, percent=1.0, seed=42):
 
     with open(datafile, 'rb') as f:
         data = pickle.load(f)
@@ -16,15 +28,15 @@ def load_tokenized_data(datafile, language_codes, percent=0.15, seed=42):
 
         true_x, true_y = [], []
         false_x, false_y = [], []
-        for xsample, ysample in zip(data[code]['x_train'], data[code]['y_train']):
-            if 1 in ysample:
+        for i, (xsample, ysample) in enumerate(zip(data[code]['x_train'], data[code]['y_train'])):
+
+            if sum(ysample) > 0:
                 true_x.append(xsample)
                 true_y.append(ysample)
 
-
         max_len = max([len(y) for y in true_y])
         for xsample, ysample in zip(data[code]['x_train'], data[code]['y_train']):
-            if 1 not in ysample and len(ysample) < max_len:
+            if sum(ysample) == 0 and len(ysample) < max_len:
                 false_x.append(xsample)
                 false_y.append(ysample)
 

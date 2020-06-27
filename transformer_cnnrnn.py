@@ -21,11 +21,12 @@ from tensorflow.keras.utils import to_categorical
 
 from transformers import AutoModel, AutoTokenizer
 
-from models import CNNRNNClassifier
+from models import CNNClassifier, RNNClassifier, CNNRNNClassifier
 from preprocess import load_tokenized_data
 from skorch_custom import SkorchBucketIterator, CustomScorer, IdiomClassifier, SentenceDataset
 from evaluation import evaluate_model
 from utils import build_model_name
+
 
 SEED = 42
 np.random.seed(SEED)
@@ -53,6 +54,16 @@ parser.add_argument(
     default='gpu',
     help='device to run the transformer model')
 parser.add_argument(
+    '--model',
+    type=str,
+    default='cnn-rnn',
+    help='which model to run')
+parser.add_argument(
+    '--labels',
+    type=str,
+    default='multilabel',
+    help='multilabel or binary classification')
+parser.add_argument(
     '--metric',
     type=str,
     default='f1',
@@ -60,7 +71,7 @@ parser.add_argument(
 parser.add_argument(
     '--nfilters',
     type=int,
-    default=128,
+    default=5,
     help='number of convolution filters')
 parser.add_argument(
     '--kernels',
@@ -80,27 +91,27 @@ parser.add_argument(
 parser.add_argument(
     '--lstm_size',
     type=int,
-    default=200,
+    default=5,
     help='number of convolution filters')
 parser.add_argument(
     '--dropout',
     type=float,
-    default=0.5,
+    default=0.2,
     help='dropout probability for the dense layer')
 parser.add_argument(
     '--initrange',
     type=float,
-    default=0.05,
+    default=0.1,
     help='range to initialize the lstm layers')
 parser.add_argument(
     '--clipnorm',
     type=float,
-    default=1.0,
+    default=5.0,
     help='limit to clip the l2 norm of gradients')
 parser.add_argument(
     '--output_activation',
     type=str,
-    default='sigmoid',
+    default='softmax',
     help='output activation')
 parser.add_argument(
     '--batch_size',
@@ -110,7 +121,7 @@ parser.add_argument(
 parser.add_argument(
     '--eval_batch_size',
     type=int,
-    default=256,
+    default=32,
     help='validation/evaluation batch size')
 parser.add_argument(
     '--max_epochs',
@@ -127,34 +138,46 @@ parser.add_argument(
     action="store_true",
     help="eval at the end of the training process")
 
+
 args = parser.parse_args()
 args.kernels = [int(i) for i in args.kernels if ',' not in str(i)]
 transformer_device = torch.device(
     'cuda' if torch.cuda.is_available() and args.bert_device == 'gpu'
     else 'cpu')
-# transformer_device
+ONE_HOT_OUTPUT = False #args.output_activation == 'softmax' and args.labels == 'binary'
+
 
 (x_train, y_train), (x_val, y_val), (x_dev, y_dev) = load_tokenized_data(
-    datafile='data/{}.tokenized.pkl'.format(args.bert_type),
-    language_codes=LANGUAGE_CODES,
+    datafile='data/{}{}.tokenized.pkl'.format(
+        args.bert_type, '' if args.labels == 'binary' else '.multilabel'),
+    language_codes=LANGUAGE_CODES, percent=0.0,
     seed=SEED)
 
 targets = np.concatenate(y_train).reshape(-1)
 class_weights = compute_class_weight(class_weight='balanced',
                                      classes=np.unique(targets),
                                      y=targets)
+args.num_outputs = len(class_weights)
 
 tokenizer = AutoTokenizer.from_pretrained(args.bert_type)
 transformer = AutoModel.from_pretrained(args.bert_type)
 
-model = CNNRNNClassifier(args, transformer, transformer_device)
-model_name = build_model_name(args, model='cnn-rnn')
+if args.model == 'cnn':
+    model = CNNClassifier(args, transformer, transformer_device)
+elif args.model == 'rnn':
+    model = RNNClassifier(args, transformer, transformer_device)
+else:
+    model = CNNRNNClassifier(args, transformer, transformer_device)
+    args.model = 'cnn-rnn' if args.model != 'cnn-rnn' else args.model
+
+model_name = build_model_name(args, model=args.model)
 model.to(DEVICE)     # pylint: disable=no-member
 model.freeze_transformer()
 
 progress_bar = ProgressBar(batches_per_epoch=len(x_train) // args.batch_size + 1)
 scorer = CustomScorer(scoring=None, name="F1", lower_is_better=False, use_caching=False)
 early_stopping =  EarlyStopping(monitor='F1', patience=20, lower_is_better=False)
+
 checkpoint = Checkpoint(
     monitor='F1_best',
     dirname=args.train_dir,
@@ -166,25 +189,28 @@ net = IdiomClassifier(
     module=model,
     class_weights=class_weights,
     print_report=False,
+    score_average='weighted',
      #
     iterator_train=SkorchBucketIterator,
     iterator_train__batch_size=args.batch_size,
     iterator_train__sort_key=lambda x: len(x.sentence),
     iterator_train__shuffle=True,
     iterator_train__device=DEVICE,
-    iterator_train__one_hot=args.output_activation == 'softmax',
+    iterator_train__one_hot=ONE_HOT_OUTPUT,
      #
     iterator_valid=SkorchBucketIterator,
     iterator_valid__batch_size=args.eval_batch_size,
     iterator_valid__sort_key=lambda x: len(x.sentence),
     iterator_valid__shuffle=True,
     iterator_valid__device=DEVICE,
-    iterator_valid__one_hot=args.output_activation == 'softmax',
+    iterator_valid__one_hot=ONE_HOT_OUTPUT,
 
     train_split=predefined_split(SentenceDataset(data=(x_val, y_val))),
     optimizer=torch.optim.Adam,
-    criterion=nn.BCELoss,
+    criterion=nn.BCELoss if args.labels == 'binary' else nn.NLLLoss,
+    criterion__ignore_index=-1,
     callbacks=[progress_bar, scorer, early_stopping, checkpoint],
+    # callbacks=[scorer, early_stopping, checkpoint],
     device=DEVICE,
 )
 
@@ -197,9 +223,9 @@ print(model_name)
 args.eval = True
 if args.eval:
     for code in LANGUAGE_CODES:
-        print('#' * 20)
+        print('#' * 5)
         print('# Evaluating Language: {}'.format(code))
-        print('#' * 20)
+        print('#' * 5)
         test_iterator = SkorchBucketIterator(
             dataset=SentenceDataset(data=(x_dev[code], y_dev[code])),
             batch_size=args.eval_batch_size,
@@ -212,5 +238,5 @@ if args.eval:
         args.dev_file = 'data/{}/dev.cupt'.format(code)
         evaluate_model(net, test_iterator, tokenizer, args)
 
-print("#" * 20)
+print("#" * 5)
 print("\nTraining finished!!!")

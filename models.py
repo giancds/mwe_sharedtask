@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from sklearn.metrics import f1_score
 from skorch import NeuralNetClassifier
+
 class CNNClassifier(nn.Module):
     def __init__(self, config, transformer, transformer_device):
         super(CNNClassifier, self).__init__()
@@ -22,7 +23,15 @@ class CNNClassifier(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
 
         ninputs = (config.nfilters // config.pool_stride) * len(config.kernels)
-        noutputs = (1 if config.output_activation == 'sigmoid' else 2)
+
+        self.noutputs = 1
+        if config.labels == 'multilabel':
+            self.noutputs = config.num_outputs
+        else:
+            if config.output_activation == 'softmax':
+                self.noutputs = 2
+
+        self.fully_connected = nn.Linear(ninputs, noutputs)
 
         self.fully_connected = nn.Linear(ninputs, noutputs)
 
@@ -80,7 +89,12 @@ class RNNClassifier(nn.Module):
             dropout=config.dropout)
 
         self.dropout = nn.Dropout(config.dropout)
-        noutputs = (1 if config.output_activation == 'sigmoid' else 2)
+        self.noutputs = 1
+        if config.labels == 'multilabel':
+            self.noutputs = config.num_outputs
+        else:
+            if config.output_activation == 'softmax':
+                self.noutputs = 2
 
         self.fully_connected = nn.Linear(config.lstm_size, noutputs)
 
@@ -162,11 +176,16 @@ class CNNRNNClassifier(nn.Module):
 
         self.dropout = nn.Dropout(config.dropout)
 
-        noutputs = (1 if config.output_activation == 'sigmoid' else 2)
-        self.fully_connected = nn.Linear(config.lstm_size, noutputs)
+        self.noutputs = 1
+        if config.labels == 'multilabel':
+            self.noutputs = config.num_outputs
+        else:
+            if config.output_activation == 'softmax':
+                self.noutputs = 2
+        self.fully_connected = nn.Linear(config.lstm_size, self.noutputs)
 
         self.output_activation = (torch.sigmoid  # pylint: disable=no-member
-                                  if noutputs == 1
+                                  if self.noutputs == 1
                                   else F.softmax)
         self.init_weights(config.initrange)
 
@@ -205,7 +224,7 @@ class CNNRNNClassifier(nn.Module):
         #
         x = self.fully_connected(x)
         #
-        return self.output_activation(x).squeeze()
+        return self.output_activation(x, dim=2)
 
     def init_weights(self, initrange):
         for conv in self.convolutions:
@@ -222,6 +241,10 @@ class CNNRNNClassifier(nn.Module):
                 weight.data.uniform_(-initrange, initrange)
         self.fully_connected.weight.data.uniform_(-initrange, initrange)
         self.fully_connected.bias.data.fill_(0)
+
+
+
+
 
 
 

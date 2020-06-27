@@ -16,8 +16,10 @@ class SkorchBucketIterator(BucketIterator):
                  shuffle=None,
                  sort=None,
                  sort_within_batch=None,
-                 one_hot=True):
+                 one_hot=True,
+                 num_classes=2):
         self.one_hot = one_hot
+        self.num_classes = num_classes
         super(SkorchBucketIterator,
               self).__init__(dataset, batch_size, sort_key, device,
                              batch_size_fn, train, repeat, shuffle, sort,
@@ -30,7 +32,7 @@ class SkorchBucketIterator(BucketIterator):
             # if self.train:
             if self.one_hot:
                 y = batch.labels.to('cpu')
-                y = to_categorical(y, num_classes=2)
+                y = to_categorical(y, num_classes=self.num_classes)
                 y = torch.tensor(y).to(self.device)
                 batch.labels = y
             else:
@@ -56,9 +58,10 @@ class SentenceDataset(Dataset):
 
 class IdiomClassifier(skorch.NeuralNetClassifier):
 
-    def __init__(self, print_report=True, class_weights=None, *args, **kwargs):
+    def __init__(self, print_report=True, class_weights=None, score_average='binary', *args, **kwargs):
         self.print_report = print_report
         self.class_weights = class_weights
+        self.score_average = score_average
         if class_weights is None:
             self.class_weights = [1.0, 1.0]
         super(IdiomClassifier, self).__init__(*args, **kwargs)
@@ -66,16 +69,20 @@ class IdiomClassifier(skorch.NeuralNetClassifier):
         self.set_params(criterion__reduction='none')
 
     def get_loss(self, y_pred, y_true, X, *args, **kwargs):
-        loss = super().get_loss(y_pred.view(-1), y_true.view(-1), X, *args,
-                                **kwargs)
-        weights = torch.ones_like(y_true) * y_true
-        weights = torch.where(
-            y_true == 0,
-            torch.tensor(self.class_weights[0]).float().to(self.device),
-            torch.where(y_true == 1,
-                        torch.tensor(self.class_weights[1]).to(self.device).float(),
-                        torch.tensor(-1.0).to(self.device)))
-        loss = (loss * weights.view(-1))
+        if isinstance(self.criterion_, torch.nn.NLLLoss):
+            loss = super().get_loss(y_pred.view(-1, self.module.noutputs),
+                                    y_true.long().view(-1), X, *args, **kwargs)
+        else:
+            loss = super().get_loss(y_pred.view(-1), y_true.view(-1), X, *args,
+                                        **kwargs)
+        if self.class_weights is not None:
+            weights = torch.ones_like(y_true) * y_true
+            for w, weight in enumerate(self.class_weights):
+                weights = torch.where(
+                    y_true == w,
+                    torch.tensor(weight).float().to(self.device),
+                    weights)
+            loss = (loss * weights.view(-1))
         mask = (y_true >= 0).int()
         loss = (loss * mask.view(-1)).mean()
         return loss
@@ -118,7 +125,7 @@ class IdiomClassifier(skorch.NeuralNetClassifier):
             print('Confusion matrix')
             print(confusion_matrix(y_true, y_pred))
             print(classification_report(y_true, y_pred))
-        return f1_score(y_true, y_pred, average='binary')
+        return f1_score(y_true, y_pred, average=self.score_average)
 
 
 class CustomScorer(skorch.callbacks.EpochScoring):
@@ -126,3 +133,4 @@ class CustomScorer(skorch.callbacks.EpochScoring):
     def on_epoch_end(self, net, dataset_train, dataset_valid, **kwargs):
         current_score = net.score(dataset_valid)
         self._record_score(net.history, current_score)
+
