@@ -2,8 +2,66 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from sklearn.metrics import f1_score
-from skorch import NeuralNetClassifier
+class NNClassifier(nn.Module):
+    def __init__(self, config, transformer, transformer_device):
+        super(NNClassifier, self).__init__()
+
+        self.transformer_device = transformer_device
+        self.model_device = transformer_device
+        self.transformer = transformer
+        self.dropout = nn.Dropout(config.dropout)
+        self.ninputs = transformer.embeddings.word_embeddings.embedding_dim
+        if config.hidden_size > 0:
+            self.fully_connected1 = nn.Linear(self.ninputs, config.hidden_size)
+            ninputs_to_classifier = config.hidden_size
+        else:
+            self.fully_connected1 = None
+            ninputs_to_classifier = self.ninputs
+
+        self.noutputs = 1
+        if config.labels == 'multilabel':
+            self.noutputs = config.num_outputs
+        else:
+            if config.output_activation == 'softmax':
+                self.noutputs = 2
+
+        self.fully_connected = nn.Linear(ninputs_to_classifier, self.noutputs)
+
+        self.output_activation = ('sigmoid'  # pylint: disable=no-member
+                                  if self.noutputs == 1
+                                  else ('sigmoid'
+                                        if config.output_activation == 'sigmoid'
+                                        else 'softmax'))
+
+    def to(self, *args, **kwargs):
+        self = super().to(*args, **kwargs)
+        self.transformer = self.transformer.to(
+            torch.device(self.transformer_device))
+        self.model_device = next(self.fully_connected.parameters()).device.type
+        return self
+
+    def freeze_transformer(self):
+        for param in self.transformer.parameters():
+            param.requires_grad = False
+
+    def unfreeze_transformer(self):
+        for param in self.transformer.parameters():
+            param.requires_grad = True
+
+    def forward(self, x):
+        x = x.to(self.transformer_device)
+        m = (x > 0).int()
+        x = self.transformer(x, attention_mask=m)[0]
+        #
+        #
+        if self.transformer_device != self.model_device:
+            x = x.to(self.model_device)
+
+        if self.fully_connected1 is not None:
+            x = F.elu(self.fully_connected1(self.dropout(x)))
+
+        return self.fully_connected(self.dropout(x))
+
 
 class CNNClassifier(nn.Module):
     def __init__(self, config, transformer, transformer_device):
@@ -31,13 +89,13 @@ class CNNClassifier(nn.Module):
             if config.output_activation == 'softmax':
                 self.noutputs = 2
 
-        self.fully_connected = nn.Linear(ninputs, noutputs)
+        self.fully_connected = nn.Linear(ninputs, self.noutputs)
 
-        self.fully_connected = nn.Linear(ninputs, noutputs)
-
-        self.output_activation = (torch.sigmoid  # pylint: disable=no-member
-                                  if noutputs == 1
-                                  else F.softmax)
+        self.output_activation = ('sigmoid'  # pylint: disable=no-member
+                                  if self.noutputs == 1
+                                  else ('sigmoid'
+                                        if config.output_activation == 'sigmoid'
+                                        else 'softmax'))
 
     def to(self, *args, **kwargs):
         self = super().to(*args, **kwargs)
@@ -64,14 +122,12 @@ class CNNClassifier(nn.Module):
         if self.transformer_device != self.model_device:
             x = x.to(self.model_device)
         #
-        x = [F.relu(conv(x)).transpose(1, 2) for conv in self.convolutions]
+        x = [F.elu(conv(x)).transpose(1, 2) for conv in self.convolutions]
         x = [nn.functional.pad(i, (0, 0, 0, seq_len - i.shape[1])) for i in x]
         x = [F.max_pool1d(c, self.pool_stride) for c in x]
         x = torch.cat(x, dim=2)  # pylint: disable=no-member
-        x = self.fully_connected(x)
-        x = self.dropout(x)
 
-        return self.output_activation(x).squeeze()
+        return self.fully_connected(self.dropout(x))
 
 class RNNClassifier(nn.Module):
     def __init__(self, config, transformer, transformer_device):
@@ -96,11 +152,13 @@ class RNNClassifier(nn.Module):
             if config.output_activation == 'softmax':
                 self.noutputs = 2
 
-        self.fully_connected = nn.Linear(config.lstm_size, noutputs)
+        self.fully_connected = nn.Linear(config.lstm_size, self.noutputs)
 
-        self.output_activation = (torch.sigmoid  # pylint: disable=no-member
-                                  if noutputs == 1
-                                  else F.softmax)
+        self.output_activation = ('sigmoid'  # pylint: disable=no-member
+                                  if self.noutputs == 1
+                                  else ('sigmoid'
+                                        if config.output_activation == 'sigmoid'
+                                        else 'softmax'))
         self.init_weights(config.initrange)
 
     def to(self, *args, **kwargs):
@@ -123,16 +181,12 @@ class RNNClassifier(nn.Module):
         m = (x > 0).int()
         x = self.transformer(x, attention_mask=m)[0]
         #
-        seq_len = x.shape[-1]
-        #
         if self.transformer_device != self.model_device:
             x = x.to(self.model_device)
         #
         x, _ = self.lstm(x)
-        x = self.dropout(x)
-        x = self.fully_connected(x)
 
-        return self.output_activation(x).squeeze()
+        return self.fully_connected(self.dropout(x))
 
     def init_weights(self, initrange):
         for names in self.lstm._all_weights:
@@ -184,9 +238,11 @@ class CNNRNNClassifier(nn.Module):
                 self.noutputs = 2
         self.fully_connected = nn.Linear(config.lstm_size, self.noutputs)
 
-        self.output_activation = (torch.sigmoid  # pylint: disable=no-member
+        self.output_activation = ('sigmoid'  # pylint: disable=no-member
                                   if self.noutputs == 1
-                                  else F.softmax)
+                                  else ('sigmoid'
+                                        if config.output_activation == 'sigmoid'
+                                        else 'softmax'))
         self.init_weights(config.initrange)
 
     def to(self, *args, **kwargs):
@@ -213,18 +269,14 @@ class CNNRNNClassifier(nn.Module):
         if self.transformer_device != self.model_device:
             x = x.to(self.model_device)
         #
-        x = [F.relu(conv(x)).transpose(1, 2) for conv in self.convolutions]
+        x = [F.elu(conv(x)).transpose(1, 2) for conv in self.convolutions]
         x = [nn.functional.pad(i, (0, 0, 0, seq_len - i.shape[1])) for i in x]
         x = [F.max_pool1d(c, self.pool_stride) for c in x]
         x = torch.cat(x, dim=2)  # pylint: disable=no-member
         x = self.dropout(x)
         #
         x, _ = self.lstm(x)
-        x = self.dropout(x)
-        #
-        x = self.fully_connected(x)
-        #
-        return self.output_activation(x, dim=2)
+        return self.fully_connected(self.dropout(x))
 
     def init_weights(self, initrange):
         for conv in self.convolutions:
@@ -241,11 +293,3 @@ class CNNRNNClassifier(nn.Module):
                 weight.data.uniform_(-initrange, initrange)
         self.fully_connected.weight.data.uniform_(-initrange, initrange)
         self.fully_connected.bias.data.fill_(0)
-
-
-
-
-
-
-
-

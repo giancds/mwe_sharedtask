@@ -3,6 +3,8 @@ import skorch
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
 from torchtext.data import Dataset, Field, Example, BucketIterator
 from tensorflow.keras.utils import to_categorical
+
+
 class SkorchBucketIterator(BucketIterator):
 
     def __init__(self,
@@ -69,12 +71,16 @@ class IdiomClassifier(skorch.NeuralNetClassifier):
         self.set_params(criterion__reduction='none')
 
     def get_loss(self, y_pred, y_true, X, *args, **kwargs):
-        if isinstance(self.criterion_, torch.nn.NLLLoss):
-            loss = super().get_loss(y_pred.view(-1, self.module.noutputs),
-                                    y_true.long().view(-1), X, *args, **kwargs)
+        if isinstance(self.criterion_, torch.nn.BCELoss):
+            loss = super().get_loss(
+                y_pred.view(-1), y_true.view(-1), X, *args, **kwargs)
         else:
-            loss = super().get_loss(y_pred.view(-1), y_true.view(-1), X, *args,
-                                        **kwargs)
+            if isinstance(self.criterion_, torch.nn.NLLLoss):
+                y_pred = self.module.output_activation(y_pred, dim=2)
+            loss = super().get_loss(
+                y_pred.view(-1, self.module.noutputs),
+                y_true.long().view(-1), X, *args, **kwargs)
+
         if self.class_weights is not None:
             weights = torch.ones_like(y_true) * y_true
             for w, weight in enumerate(self.class_weights):
@@ -83,17 +89,30 @@ class IdiomClassifier(skorch.NeuralNetClassifier):
                     torch.tensor(weight).float().to(self.device),
                     weights)
             loss = (loss * weights.view(-1))
-        mask = (y_true >= 0).int()
-        loss = (loss * mask.view(-1)).mean()
-        return loss
+        if isinstance(self.criterion_, torch.nn.BCELoss):
+            mask = (y_true >= 0).int()
+            loss = (loss * mask.view(-1))
+        return loss.mean()
 
-    def predict(self, X):
+    def predict_proba(self, X):
         self.module.eval()
         y_pred = self.module(X)
-        if len(y_pred.shape) > 2:
+
+        if self.module.output_activation == 'softmax':
+            y_pred = F.softmax(y_pred, dim=2)
+        else:
+            y_pred = torch.sigmoid(y_pred)
+
+        return y_pred
+
+    def predict(self, X):
+        y_pred = self.predict_proba(X)
+
+        if self.module.noutputs > 1:
             y_pred = torch.argmax(y_pred, dim=2)
         else:
             y_pred = (y_pred > 0.5).int()
+
         return y_pred
 
     def score(self, X, y=None):
@@ -133,4 +152,3 @@ class CustomScorer(skorch.callbacks.EpochScoring):
     def on_epoch_end(self, net, dataset_train, dataset_valid, **kwargs):
         current_score = net.score(dataset_valid)
         self._record_score(net.history, current_score)
-

@@ -1,15 +1,16 @@
 from eval_scripts.evaluate import Main
 
 ID_LABELS = {
-    0: 'none',
+    0: '*',
     1: 'IAV',
     2: 'IRV',
     3: 'LVC.cause',
     4: 'LVC.full',
-    5: 'MVC',
-    6: 'VID',
-    7: 'VPC.full',
-    8: 'VPC.semi',
+    5: 'LS.ICV',
+    6: 'MVC',
+    7: 'VID',
+    8: 'VPC.full',
+    9: 'VPC.semi',
 }
 
 def evaluate_model(net, test_iterator, tokenizer, args):
@@ -40,7 +41,11 @@ def evaluate_model(net, test_iterator, tokenizer, args):
                     text = text[0:-1]
                     text.append(old_token)
                     predictions = predictions[0:-1]
-                    predictions.append(old_pred if old_pred == 0 else 1)
+                    predictions.append(old_pred
+                                       if old_pred == 0
+                                       else (sub_preds[0]
+                                             if sub_preds[0] > 0
+                                             else max(sub_preds)))
                     old_token = t
                     old_pred = p
                     sub_tokens = []
@@ -54,9 +59,10 @@ def evaluate_model(net, test_iterator, tokenizer, args):
         sents.append(text[1:-1])
         preds += predictions[1:-1]
 
+    binary = args.labels == 'binary'
     output_count = 0
     with open(args.dev_file, 'r') as dev:
-        with open(args.dev_file.replace('dev.cupt', 'temp.cupt'), 'w') as test:
+        with open(args.dev_file.replace('dev.cupt', 'temp.cupt'), 'w') as temp:
             for line in dev:
                 feats = line.split()
                 if not line.startswith('#') and line != '\n' and '-' not in feats[0]:
@@ -64,14 +70,14 @@ def evaluate_model(net, test_iterator, tokenizer, args):
                     if prediction == 0:
                         label = '*'
                     else:
-                        # label = ID_LABELS.get(prediction, '*')
-                        label = 1
+                        label = ID_LABELS.get(prediction, '*')
+                        # label = 1
                     new_line = '\t'.join(
                         [str(f) for f in feats[0:-1]] + [str(label)] + ['\n'])
-                    test.write(new_line)
+                    temp.write(new_line)
                     output_count += 1
                 else:
-                    test.write(line)
+                    temp.write(line)
 
     # post-process the file to get the predictions into cupt format
     with open(args.dev_file.replace('dev.cupt', 'temp.cupt'), 'r') as temp:
@@ -89,8 +95,8 @@ def evaluate_model(net, test_iterator, tokenizer, args):
 
                         if current_prediction[1] is None:
 
-                            # label = '{}:{}'.format(current_prediction[0], feats[10])
-                            label = str(current_prediction[0])
+                            label = '{}:{}'.format(current_prediction[0], feats[10])
+                            # label = str(current_prediction[0])
                             verb_found = True if feats[3] == 'VERB' else False
                             current_prediction[1] = feats[10]
 
@@ -104,8 +110,8 @@ def evaluate_model(net, test_iterator, tokenizer, args):
                                 elif verb_found and feats[3] == 'VERB':
                                     current_prediction[0] = current_prediction[0] + 1
                                     current_prediction[1] = feats[10]
-                                    # label = '{}:{}'.format(current_prediction[0], feats[10])
-                                    label = str(current_prediction[0])
+                                    label = '{}:{}'.format(current_prediction[0], feats[10])
+                                    # label = str(current_prediction[0])
 
                                 elif not verb_found:
                                     label = current_prediction[0]
@@ -114,8 +120,8 @@ def evaluate_model(net, test_iterator, tokenizer, args):
                             else:
                                 current_prediction[0] = current_prediction[0] + 1
                                 current_prediction[1] = feats[10]
-                                # label = '{}:{}'.format(current_prediction[0], feats[10])
-                                label = str(current_prediction[0])
+                                label = '{}:{}'.format(current_prediction[0], feats[10])
+                                # label = str(current_prediction[0])
                                 verb_found = True if feats[3] == 'VERB' else False
                         new_line = '\t'.join(feats[0:-2] + [str(label)] + ['\n'])
                         test.write(new_line)

@@ -11,3 +11,4 @@ eval_scripts/
 *.json
 *.pt
 *.out
+transformer/
